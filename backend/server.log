@@ -1,0 +1,4 @@
+[dotenv@17.2.3] injecting env (4) from .env -- tip: 👥 sync secrets across teammates & machines: https://dotenvx.com/ops
+Server is running on port:5001
+Using In-Memory MongoDB: mongodb://127.0.0.1:46101/
+MongoDB Connected: 127.0.0.1
