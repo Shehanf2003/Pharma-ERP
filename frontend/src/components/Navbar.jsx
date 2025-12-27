@@ -10,6 +10,9 @@ const Navbar = () => {
       <h1 style={styles.logo}>Pharma ERP</h1>
       <div style={styles.links}>
         <Link to="/" style={styles.link}>Dashboard</Link>
+        {user && user.role === 'admin' && (
+           <Link to="/register-user" style={styles.link}>Register User</Link>
+        )}
         {user && (
           <div style={styles.userSection}>
             <span>{user.name} ({user.role})</span>
