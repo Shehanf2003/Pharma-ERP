@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import axios from 'axios';
+import  axiosInstance from "../lib/axios.js"; 
 
 const AuthContext = createContext(null);
 
@@ -7,11 +7,10 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Check if user is logged in on mount
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const res = await axios.get('/api/auth/check');
+        const res = await axiosInstance.get('/auth/check');
         setUser(res.data);
       } catch (error) {
         setUser(null);
@@ -24,7 +23,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const res = await axios.post('/api/auth/login', { email, password });
+      const res = await axiosInstance.post('/auth/login', { email, password });
       setUser(res.data);
       return { success: true };
     } catch (error) {
@@ -37,7 +36,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      await axios.post('/api/auth/logout');
+      await axiosInstance.post('/auth/logout');
       setUser(null);
     } catch (error) {
       console.error("Logout failed", error);
