@@ -1,0 +1,6 @@
+[dotenv@17.2.3] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+Server is running on port:5001
+Using In-Memory MongoDB: mongodb://127.0.0.1:40585/
+MongoDB Connected: 127.0.0.1
+Error in login controller secretOrPrivateKey must have a value
+Error in login controller secretOrPrivateKey must have a value

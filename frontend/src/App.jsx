@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import ModulePage from './pages/ModulePage';
 import RegisterUser from './pages/RegisterUser';
+import InventoryDashboard from './pages/inventory/InventoryDashboard';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 function App() {
@@ -32,7 +33,7 @@ function App() {
           </Route>
 
           <Route element={<ProtectedRoute requiredModule="INVENTORY" />}>
-            <Route path="/inventory" element={<ModulePage name="Inventory Module" endpoint="/api/auth/inventory" />} />
+            <Route path="/inventory" element={<InventoryDashboard />} />
           </Route>
 
           <Route element={<ProtectedRoute requiredModule="POS" />}>
