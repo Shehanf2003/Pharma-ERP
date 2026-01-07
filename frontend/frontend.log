@@ -8,3 +8,4 @@ Re-optimizing dependencies because lockfile has changed
 
   ➜  Local:   http://localhost:5173/
   ➜  Network: use --host to expose
+9:41:35 AM [vite] hmr update /src/pages/admin/UserManagement.jsx, /src/index.css

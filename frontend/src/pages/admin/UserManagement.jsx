@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
-import { Pencil, Trash, Key, X, Check } from 'lucide-react';
+import { Pencil, Trash, Key, X, Check, Search } from 'lucide-react';
 import axios from '../../lib/axios';
 
 const UserManagement = () => {
   const queryClient = useQueryClient();
   const [editingUser, setEditingUser] = useState(null);
   const [resetPasswordUser, setResetPasswordUser] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Fetch Users
   const { data: users, isLoading, isError } = useQuery({
@@ -58,9 +59,30 @@ const UserManagement = () => {
   if (isLoading) return <div className="p-6">Loading users...</div>;
   if (isError) return <div className="p-6 text-red-500">Error loading users.</div>;
 
+  // Filter users
+  const filteredUsers = users.filter((user) =>
+    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6 text-gray-800">User Management</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold text-gray-800">User Management</h1>
+      </div>
+
+      <div className="mb-6 relative">
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <Search className="h-5 w-5 text-gray-400" />
+        </div>
+        <input
+          type="text"
+          className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+          placeholder="Search users by name or email..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
 
       <div className="overflow-x-auto bg-white shadow rounded-lg">
         <table className="w-full text-left border-collapse">
@@ -73,12 +95,14 @@ const UserManagement = () => {
             </tr>
           </thead>
           <tbody>
-            {users.length === 0 ? (
+            {filteredUsers.length === 0 ? (
                 <tr>
-                    <td colSpan="4" className="p-4 text-center text-gray-500">No employees found.</td>
+                    <td colSpan="4" className="p-4 text-center text-gray-500">
+                        {users.length === 0 ? "No employees found." : "No users match your search."}
+                    </td>
                 </tr>
             ) : (
-                users.map((user) => (
+                filteredUsers.map((user) => (
                 <UserRow
                     key={user._id}
                     user={user}
