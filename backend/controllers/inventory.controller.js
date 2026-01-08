@@ -8,7 +8,7 @@ const productSchema = z.object({
   category: z.string().optional(),
   manufacturer: z.string().optional(),
   storageCondition: z.enum(['Cold Chain', 'Room Temp', 'Frozen', 'Refrigerated']).optional(),
-  minStockLevel: z.number().min(0).optional(),
+ minStockLevel: z.coerce.number().min(0).optional(),
 });
 
 const batchSchema = z.object({

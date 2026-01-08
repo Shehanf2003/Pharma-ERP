@@ -1,54 +1,79 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { ProtectedRoute } from './components/ProtectedRoute';
+
+// Import Pages
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import ModulePage from './pages/ModulePage';
 import RegisterUser from './pages/RegisterUser';
 import InventoryDashboard from './pages/inventory/InventoryDashboard';
-import { ProtectedRoute } from './components/ProtectedRoute';
+
+// Import Components
+import Navbar from './components/Navbar';
+
+// --- Internal Layout Component ---
+// This wraps all authenticated pages to ensure they have the Navbar and consistent background
+const AppLayout = () => {
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Navbar />
+      {/* The Outlet renders the child route (Dashboard, Inventory, etc.) */}
+      <main>
+        <Outlet />
+      </main>
+    </div>
+  );
+};
 
 function App() {
   return (
     <Router>
       <AuthProvider>
         <Routes>
+          
+          {/* --- Public Routes (No Navbar) --- */}
           <Route path="/login" element={<Login />} />
 
+          {/* --- Protected Routes (Wrapped in Navbar Layout) --- */}
+          {/* 1. First, check if user is logged in (ProtectedRoute) */}
           <Route element={<ProtectedRoute />}>
-             <Route path="/" element={<Dashboard />} />
+            
+            {/* 2. Then, render the Layout (Navbar + Background) */}
+            <Route element={<AppLayout />}>
+              
+              {/* General Access */}
+              <Route path="/" element={<Dashboard />} />
+              
+              {/* Admin Access */}
+              <Route path="/register-user" element={<RegisterUser />} />
+
+              {/* Module Specific Access */}
+              {/* These routes check for specific permissions before rendering */}
+              
+              <Route element={<ProtectedRoute requiredModule="INVENTORY" />}>
+                <Route path="/inventory" element={<InventoryDashboard />} />
+              </Route>
+
+              <Route element={<ProtectedRoute requiredModule="POS" />}>
+                <Route path="/pos" element={<ModulePage name="POS Module" endpoint="/api/auth/pos" />} />
+              </Route>
+
+              <Route element={<ProtectedRoute requiredModule="FINANCE" />}>
+                <Route path="/finance" element={<ModulePage name="Finance Module" endpoint="/api/auth/finance" />} />
+              </Route>
+
+              <Route element={<ProtectedRoute requiredModule="REPORTING" />}>
+                <Route path="/reporting" element={<ModulePage name="Reporting Module" endpoint="/api/auth/reporting" />} />
+              </Route>
+
+            </Route>
           </Route>
 
-          <Route element={<ProtectedRoute />}>
-            {/* Only admins can access this route because standard users won't see the link,
-                and backend will reject the request.
-                Ideally, ProtectedRoute should handle role checks for routes too,
-                but for now backend protection + UI hiding is sufficient MVP.
-                I will add inline role check in component or separate route wrapper if strictly needed,
-                but the prompt asks for module protection mainly.
-                Let's use the same ProtectedRoute but maybe add a prop or just rely on backend?
-                Actually, I'll wrap it in a specific admin check.
-            */}
-             <Route path="/register-user" element={<RegisterUser />} />
-          </Route>
-
-          <Route element={<ProtectedRoute requiredModule="INVENTORY" />}>
-            <Route path="/inventory" element={<InventoryDashboard />} />
-          </Route>
-
-          <Route element={<ProtectedRoute requiredModule="POS" />}>
-            <Route path="/pos" element={<ModulePage name="POS Module" endpoint="/api/auth/pos" />} />
-          </Route>
-
-          <Route element={<ProtectedRoute requiredModule="FINANCE" />}>
-            <Route path="/finance" element={<ModulePage name="Finance Module" endpoint="/api/auth/finance" />} />
-          </Route>
-
-          <Route element={<ProtectedRoute requiredModule="REPORTING" />}>
-            <Route path="/reporting" element={<ModulePage name="Reporting Module" endpoint="/api/auth/reporting" />} />
-          </Route>
-
+          {/* Fallback Route */}
           <Route path="*" element={<Navigate to="/" replace />} />
+          
         </Routes>
       </AuthProvider>
     </Router>
