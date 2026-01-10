@@ -74,14 +74,17 @@ export const addProduct = async (req, res) => {
   } catch (error) {
     if (error instanceof z.ZodError) {
        // Check if the error is related to NMRA compliance specific checks in initialBatch
-       const nmraErrors = error.errors.filter(e =>
-          e.message === "Expiry date must be in the future" ||
-          e.message === "MRP must be greater than cost price"
-      );
-      if (nmraErrors.length > 0) {
-           return res.status(400).json({ message: "NMRA Compliance Violation: " + nmraErrors.map(e => e.message).join(", ") });
-      }
-      return res.status(400).json({ errors: error.errors });
+       // Ensure error.errors exists and is an array before filtering
+       if (Array.isArray(error.errors)) {
+          const nmraErrors = error.errors.filter(e =>
+              e.message === "Expiry date must be in the future" ||
+              e.message === "MRP must be greater than cost price"
+          );
+          if (nmraErrors.length > 0) {
+              return res.status(400).json({ message: "NMRA Compliance Violation: " + nmraErrors.map(e => e.message).join(", ") });
+          }
+          return res.status(400).json({ errors: error.errors });
+       }
     }
     res.status(500).json({ message: error.message });
   }
@@ -186,3 +189,54 @@ export const getInventory = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 }
+
+export const getAllBatches = async (req, res) => {
+  try {
+    const batches = await Batch.find()
+      .populate('productId', 'name genericName')
+      .sort({ expiryDate: 1 });
+    res.json(batches);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const updateBatch = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { quantity } = req.body;
+
+    if (quantity === undefined || quantity < 0) {
+        return res.status(400).json({ message: "Valid quantity is required" });
+    }
+
+    const batch = await Batch.findByIdAndUpdate(
+        id,
+        { quantity },
+        { new: true }
+    );
+
+    if (!batch) {
+        return res.status(404).json({ message: "Batch not found" });
+    }
+
+    res.json(batch);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const deleteBatch = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const batch = await Batch.findByIdAndDelete(id);
+
+    if (!batch) {
+        return res.status(404).json({ message: "Batch not found" });
+    }
+
+    res.json({ message: "Batch deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

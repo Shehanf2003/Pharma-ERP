@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import AddStockForm from './AddStockForm';
 import AddProductForm from './AddProductForm';
-import { Package, PlusCircle, Boxes } from 'lucide-react';
+import ManageStockTable from './ManageStockTable';
+import { Package, PlusCircle, Boxes, ClipboardList } from 'lucide-react';
 
 const InventoryDashboard = () => {
   // We don't strictly need the full inventory here, 
@@ -11,7 +12,7 @@ const InventoryDashboard = () => {
   const [error, setError] = useState(null);
   const [submitError, setSubmitError] = useState(null);
   
-  const [activeTab, setActiveTab] = useState('stock'); // 'stock' or 'product'
+  const [activeTab, setActiveTab] = useState('stock'); // 'stock' or 'product' or 'manage'
 
   const getAuthHeaders = () => {
     const token = localStorage.getItem('token');
@@ -111,14 +112,26 @@ const InventoryDashboard = () => {
           <PlusCircle className="w-4 h-4 mr-2" />
           Create New Product
         </button>
+        <button
+          onClick={() => setActiveTab('manage')}
+          className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            activeTab === 'manage'
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+          }`}
+        >
+          <ClipboardList className="w-4 h-4 mr-2" />
+          Manage Stock
+        </button>
       </div>
 
       <div className="space-y-8">
         <section>
-          {activeTab === 'product' ? (
+          {activeTab === 'product' && (
             // The New Product Form
             <AddProductForm onSuccess={fetchProducts} />
-          ) : (
+          )}
+          {activeTab === 'stock' && (
             // The Existing Stock Batch Form
             <>
               <AddStockForm 
@@ -132,6 +145,10 @@ const InventoryDashboard = () => {
                 </div>
               )}
             </>
+          )}
+          {activeTab === 'manage' && (
+             // The New Manage Stock Table
+             <ManageStockTable />
           )}
         </section>
       </div>
