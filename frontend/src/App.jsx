@@ -59,6 +59,7 @@ function App() {
                 {/* These routes check for specific permissions before rendering */}
                 
                 <Route element={<ProtectedRoute requiredModule="INVENTORY" />}>
+                 { /*<Route path="/inventory" element={<InventoryList />} />*/}
                   <Route path="/inventory" element={<InventoryDashboard />} />
                 </Route>
 

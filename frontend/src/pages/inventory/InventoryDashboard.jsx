@@ -1,21 +1,18 @@
-// frontend/src/pages/inventory/InventoryDashboard.jsx
 import React, { useState, useEffect } from 'react';
-import StockTable from './StockTable';
 import AddStockForm from './AddStockForm';
-import AddProductForm from './AddProductForm'; // Import the new component
+import AddProductForm from './AddProductForm';
 import { Package, PlusCircle, Boxes } from 'lucide-react';
 
 const InventoryDashboard = () => {
-  const [inventory, setInventory] = useState([]);
+  // We don't strictly need the full inventory here, 
+  // but we do need the 'products' list for the AddStockForm dropdown.
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [submitError, setSubmitError] = useState(null);
   
-  // NEW: State to toggle between forms
   const [activeTab, setActiveTab] = useState('stock'); // 'stock' or 'product'
 
-  // Helper to get auth headers
   const getAuthHeaders = () => {
     const token = localStorage.getItem('token');
     return {
@@ -24,15 +21,16 @@ const InventoryDashboard = () => {
     };
   };
 
-  const fetchInventory = async () => {
+  // We fetch inventory to populate the product dropdown in AddStockForm
+  const fetchProducts = async () => {
     try {
       const response = await fetch('/api/inventory', {
-        headers: getAuthHeaders() // Added Auth headers
+        headers: getAuthHeaders()
       });
       if (!response.ok) throw new Error('Failed to fetch inventory');
       const data = await response.json();
-      setInventory(data);
-      // Since your getInventory endpoint returns product info, we can reuse it for the dropdown
+      
+      // Assuming the API returns a list that can be used for products
       setProducts(data); 
     } catch (err) {
       setError(err.message);
@@ -42,7 +40,7 @@ const InventoryDashboard = () => {
   };
 
   useEffect(() => {
-    fetchInventory();
+    fetchProducts();
   }, []);
 
   const handleAddBatch = async (batchData) => {
@@ -50,7 +48,7 @@ const InventoryDashboard = () => {
     try {
       const response = await fetch('/api/inventory/batches', {
         method: 'POST',
-        headers: getAuthHeaders(), // Added Auth headers
+        headers: getAuthHeaders(),
         body: JSON.stringify(batchData),
       });
 
@@ -60,8 +58,9 @@ const InventoryDashboard = () => {
         throw new Error(data.message || 'Failed to add batch');
       }
 
-      await fetchInventory();
       alert('Batch added successfully!');
+      // Optional: Refresh products list if adding a batch somehow alters product definitions
+      fetchProducts(); 
     } catch (err) {
       setSubmitError(err.message);
     }
@@ -74,12 +73,14 @@ const InventoryDashboard = () => {
         <div className="flex-1 min-w-0">
           <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate flex items-center">
             <Package className="mr-3 h-8 w-8 text-blue-600" />
-            Inventory Management
+            Inventory Operations
           </h2>
+          <p className="mt-1 text-sm text-gray-500">
+              Add new stock batches or create new product definitions.
+          </p>
         </div>
       </div>
 
-      {/* Error Display */}
       {error && (
         <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-8">
           <p className="text-sm text-red-700">{error}</p>
@@ -113,11 +114,10 @@ const InventoryDashboard = () => {
       </div>
 
       <div className="space-y-8">
-        {/* Conditional Rendering of Forms */}
         <section>
           {activeTab === 'product' ? (
             // The New Product Form
-            <AddProductForm onSuccess={fetchInventory} />
+            <AddProductForm onSuccess={fetchProducts} />
           ) : (
             // The Existing Stock Batch Form
             <>
@@ -133,14 +133,6 @@ const InventoryDashboard = () => {
               )}
             </>
           )}
-        </section>
-
-        {/* Data Table */}
-        <section>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg leading-6 font-medium text-gray-900">Current Stock</h3>
-          </div>
-          <StockTable data={inventory} isLoading={loading} />
         </section>
       </div>
     </div>

@@ -9,7 +9,6 @@ import { protectRoute, adminRoute } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
-// Apply protection to all routes in this file
 router.use(protectRoute, adminRoute);
 
 router.get("/users", getAllUsers);
