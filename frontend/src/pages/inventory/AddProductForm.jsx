@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Plus, AlertCircle, CheckCircle } from 'lucide-react';
-import clsx from 'clsx';
 
 const AddProductForm = ({ onSuccess }) => {
   const [formData, setFormData] = useState({
