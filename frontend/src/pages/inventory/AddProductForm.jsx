@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, AlertCircle, CheckCircle } from 'lucide-react';
+import clsx from 'clsx';
 
 const AddProductForm = ({ onSuccess }) => {
   const [formData, setFormData] = useState({
@@ -10,11 +11,25 @@ const AddProductForm = ({ onSuccess }) => {
     storageCondition: 'Room Temp',
     minStockLevel: 0,
   });
+
+  const [addInitialStock, setAddInitialStock] = useState(false);
+  const [batchData, setBatchData] = useState({
+    batchNumber: '',
+    expiryDate: '',
+    quantity: 0,
+    mrp: 0,
+    costPrice: 0,
+  });
+
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleBatchChange = (e) => {
+    setBatchData({ ...batchData, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async (e) => {
@@ -24,8 +39,17 @@ const AddProductForm = ({ onSuccess }) => {
 
     const payload = {
       ...formData,
-      minStockLevel: Number(formData.minStockLevel) || 0 
+      minStockLevel: Number(formData.minStockLevel) || 0,
     };
+
+    if (addInitialStock) {
+        payload.initialBatch = {
+            ...batchData,
+            quantity: Number(batchData.quantity),
+            mrp: Number(batchData.mrp),
+            costPrice: Number(batchData.costPrice)
+        };
+    }
     
 
     try {
@@ -56,6 +80,15 @@ const AddProductForm = ({ onSuccess }) => {
         manufacturer: '',
         storageCondition: 'Room Temp',
         minStockLevel: 0,
+      });
+
+      setAddInitialStock(false);
+      setBatchData({
+        batchNumber: '',
+        expiryDate: '',
+        quantity: 0,
+        mrp: 0,
+        costPrice: 0,
       });
 
       if (onSuccess) onSuccess();
@@ -163,6 +196,96 @@ const AddProductForm = ({ onSuccess }) => {
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
           />
         </div>
+
+        <div className="md:col-span-2">
+            <div className="flex items-center mb-4">
+                <input
+                    id="addInitialStock"
+                    name="addInitialStock"
+                    type="checkbox"
+                    checked={addInitialStock}
+                    onChange={(e) => setAddInitialStock(e.target.checked)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="addInitialStock" className="ml-2 block text-sm text-gray-900">
+                    Add Initial Stock
+                </label>
+            </div>
+        </div>
+
+        {addInitialStock && (
+            <>
+                <div className="md:col-span-2 border-t pt-4 mt-2">
+                    <h4 className="text-md font-medium text-gray-900 mb-2">Initial Batch Details</h4>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Batch Number *</label>
+                  <input
+                    type="text"
+                    name="batchNumber"
+                    required={addInitialStock}
+                    value={batchData.batchNumber}
+                    onChange={handleBatchChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Expiry Date *</label>
+                  <input
+                    type="date"
+                    name="expiryDate"
+                    required={addInitialStock}
+                    value={batchData.expiryDate}
+                    onChange={handleBatchChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Quantity *</label>
+                  <input
+                    type="number"
+                    name="quantity"
+                    min="0"
+                    required={addInitialStock}
+                    value={batchData.quantity}
+                    onChange={handleBatchChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">MRP *</label>
+                  <input
+                    type="number"
+                    name="mrp"
+                    step="0.01"
+                    min="0"
+                    required={addInitialStock}
+                    value={batchData.mrp}
+                    onChange={handleBatchChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
+                  />
+                </div>
+
+                 <div>
+                  <label className="block text-sm font-medium text-gray-700">Cost Price *</label>
+                  <input
+                    type="number"
+                    name="costPrice"
+                    step="0.01"
+                    min="0"
+                    required={addInitialStock}
+                    value={batchData.costPrice}
+                    onChange={handleBatchChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
+                  />
+                </div>
+                 <div className="hidden md:block"></div>
+            </>
+        )}
 
         
         <div className="md:col-span-2">
