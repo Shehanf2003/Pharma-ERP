@@ -7,7 +7,7 @@ const Dashboard = () => {
 
   const canAccess = (module) => {
     if (user.role === 'admin') return true;
-    return user.allowedModules.includes(module);
+    return user.allowedModules && user.allowedModules.includes(module);
   };
 
   // Define modules with added icons and Tailwind color themes
@@ -91,6 +91,33 @@ const Dashboard = () => {
              </span>
           </div>
         </div>
+
+        {/* Admin Actions Section (Merged from Feature Branch) */}
+        {user.role === 'admin' && (
+          <div className="mb-8 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Admin Controls</h3>
+            <div className="flex flex-wrap gap-4">
+               <Link 
+                 to="/register-user" 
+                 className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors flex items-center"
+               >
+                 <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                 </svg>
+                 Register New User
+               </Link>
+               <Link 
+                 to="/admin/users" 
+                 className="px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-medium rounded-lg transition-colors flex items-center"
+               >
+                 <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                 </svg>
+                 Manage Employees
+               </Link>
+            </div>
+          </div>
+        )}
 
         {/* Modules Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

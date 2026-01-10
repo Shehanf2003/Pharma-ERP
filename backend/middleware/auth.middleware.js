@@ -52,3 +52,10 @@ export const requireModuleAccess = (moduleName) => {
     }
   };
 };
+
+export const adminRoute = (req, res, next) => {
+  if (req.user && req.user.role === 'admin') {
+    return next();
+  }
+  return res.status(403).json({ message: "Access Denied - Admin only" });
+};
