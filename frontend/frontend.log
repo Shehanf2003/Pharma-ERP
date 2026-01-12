@@ -37,3 +37,13 @@ Are they installed?
       at async viteTransformMiddleware (file:///app/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
 9:53:04 AM [vite] hmr update /src/index.css, /src/pages/inventory/InventoryDashboard.jsx
 1:27:42 PM [vite] hmr update /src/pages/inventory/ManageStockTable.jsx, /src/index.css
+1:38:24 PM [vite] hmr update /src/pages/inventory/ManageStockTable.jsx, /src/index.css
+1:38:25 PM [vite] hmr update /src/pages/inventory/ManageStockTable.jsx, /src/index.css
+1:38:26 PM [vite] hmr update /src/pages/inventory/ManageStockTable.jsx, /src/index.css
+1:38:26 PM [vite] hmr update /src/pages/inventory/ManageStockTable.jsx, /src/index.css
+1:39:00 PM [vite] hmr update /src/pages/inventory/AddProductForm.jsx, /src/index.css
+1:39:01 PM [vite] hmr update /src/pages/inventory/AddProductForm.jsx, /src/index.css
+1:39:06 PM [vite] hmr update /src/pages/inventory/AddProductForm.jsx, /src/index.css
+1:39:06 PM [vite] hmr update /src/pages/inventory/AddProductForm.jsx, /src/index.css
+1:40:24 PM [vite] ✨ new dependencies optimized: html5-qrcode
+1:40:24 PM [vite] ✨ optimized dependencies changed. reloading

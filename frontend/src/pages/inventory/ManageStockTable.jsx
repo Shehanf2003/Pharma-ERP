@@ -7,7 +7,8 @@ import {
   getExpandedRowModel
 } from '@tanstack/react-table';
 import clsx from 'clsx';
-import { Save, Trash2, ChevronRight, ChevronDown, ArrowRightLeft, Edit3, Search } from 'lucide-react';
+import { Save, Trash2, ChevronRight, ChevronDown, ArrowRightLeft, Edit3, Search, Scan } from 'lucide-react';
+import ScannerModal from '../../components/ScannerModal';
 
 const ManageStockTable = () => {
   const [data, setData] = useState([]);
@@ -15,6 +16,7 @@ const ManageStockTable = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showScanner, setShowScanner] = useState(false);
 
   // Transfer Modal State
   const [showTransfer, setShowTransfer] = useState(null);
@@ -269,12 +271,21 @@ const ManageStockTable = () => {
             </div>
             <input
                 type="text"
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="block w-full pl-10 pr-12 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 placeholder="Search by Product Name, Batch Number, or Barcode (Scan)..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 autoFocus // Helpful for scanners acting as keyboard
             />
+             <div className="absolute inset-y-0 right-0 flex items-center">
+                 <button
+                    onClick={() => setShowScanner(true)}
+                    className="p-2 text-gray-500 hover:text-blue-600 focus:outline-none"
+                    title="Scan Barcode"
+                 >
+                     <Scan className="h-5 w-5" />
+                 </button>
+            </div>
         </div>
 
       <div className="overflow-x-auto shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg bg-white">
@@ -456,6 +467,17 @@ const ManageStockTable = () => {
                 </form>
             </div>
         </div>
+      )}
+
+      {/* Scanner Modal */}
+      {showScanner && (
+          <ScannerModal
+            onClose={() => setShowScanner(false)}
+            onScan={(code) => {
+                setSearchQuery(code);
+                setShowScanner(false);
+            }}
+          />
       )}
 
     </div>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Plus, AlertCircle, CheckCircle } from 'lucide-react';
+import { Plus, AlertCircle, CheckCircle, Scan } from 'lucide-react';
 import clsx from 'clsx';
+import ScannerModal from '../../components/ScannerModal';
 
 const AddProductForm = ({ onSuccess }) => {
   const [formData, setFormData] = useState({
@@ -23,6 +24,7 @@ const AddProductForm = ({ onSuccess }) => {
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [showScanner, setShowScanner] = useState(false);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -221,14 +223,24 @@ const AddProductForm = ({ onSuccess }) => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Batch Number *</label>
-                  <input
-                    type="text"
-                    name="batchNumber"
-                    required={addInitialStock}
-                    value={batchData.batchNumber}
-                    onChange={handleBatchChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
-                  />
+                  <div className="flex mt-1">
+                      <input
+                        type="text"
+                        name="batchNumber"
+                        required={addInitialStock}
+                        value={batchData.batchNumber}
+                        onChange={handleBatchChange}
+                        className="block w-full rounded-l-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowScanner(true)}
+                        className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm hover:bg-gray-100"
+                        title="Scan Barcode"
+                      >
+                          <Scan className="h-4 w-4" />
+                      </button>
+                  </div>
                 </div>
 
                 <div>
@@ -298,6 +310,17 @@ const AddProductForm = ({ onSuccess }) => {
           </button>
         </div>
       </form>
+
+      {/* Scanner Modal */}
+      {showScanner && (
+          <ScannerModal
+            onClose={() => setShowScanner(false)}
+            onScan={(code) => {
+                setBatchData(prev => ({ ...prev, batchNumber: code }));
+                setShowScanner(false);
+            }}
+          />
+      )}
     </div>
   );
 };
