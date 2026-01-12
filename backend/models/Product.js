@@ -19,6 +19,16 @@ const productSchema = new mongoose.Schema({
     enum: ['Cold Chain', 'Room Temp', 'Frozen', 'Refrigerated'],
     default: 'Room Temp'
   },
+  barcode: {
+    type: String,
+    unique: true,
+    sparse: true // Allows null/undefined values to exist without violating uniqueness
+  },
+  taxRate: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
   minStockLevel: {
     type: Number,
     required: true,

@@ -2,10 +2,38 @@
 > frontend@0.0.0 dev
 > vite
 
-Re-optimizing dependencies because lockfile has changed
 
-  VITE v5.4.21  ready in 318 ms
+  VITE v5.4.21  ready in 363 ms
 
   ➜  Local:   http://localhost:5173/
   ➜  Network: use --host to expose
-9:41:35 AM [vite] hmr update /src/pages/admin/UserManagement.jsx, /src/index.css
+Error: The following dependencies are imported but could not be resolved:
+
+  react-select (imported by /app/frontend/src/pages/inventory/PurchaseOrderManager.jsx)
+
+Are they installed?
+    at file:///app/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:50669:15
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async file:///app/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:50174:26
+9:51:33 AM [vite] Pre-transform error: Failed to resolve import "react-select" from "src/pages/inventory/PurchaseOrderManager.jsx". Does the file exist?
+9:51:35 AM [vite] Internal server error: Failed to resolve import "react-select" from "src/pages/inventory/PurchaseOrderManager.jsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /app/frontend/src/pages/inventory/PurchaseOrderManager.jsx:3:19
+  18 |  import React, { useState, useEffect } from "react";
+  19 |  import { Plus, PackageCheck, Eye, X } from "lucide-react";
+  20 |  import Select from "react-select";
+     |                      ^
+  21 |  const PurchaseOrderManager = () => {
+  22 |    _s();
+      at TransformPluginContext._formatError (file:///app/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///app/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///app/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async file:///app/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 5)
+      at async TransformPluginContext.transform (file:///app/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///app/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///app/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///app/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+9:53:04 AM [vite] hmr update /src/index.css, /src/pages/inventory/InventoryDashboard.jsx
+1:27:42 PM [vite] hmr update /src/pages/inventory/ManageStockTable.jsx, /src/index.css
