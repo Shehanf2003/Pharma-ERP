@@ -233,7 +233,7 @@ export const getInventory = async (req, res) => {
 export const getAllBatches = async (req, res) => {
   try {
     const batches = await Batch.find()
-      .populate('productId', 'name genericName')
+      .populate('productId', 'name genericName barcode')
       .populate('stockDistribution.location', 'name') // Populate location names
       .sort({ expiryDate: 1 });
     res.json(batches);

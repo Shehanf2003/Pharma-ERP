@@ -47,3 +47,5 @@ Are they installed?
 1:39:06 PM [vite] hmr update /src/pages/inventory/AddProductForm.jsx, /src/index.css
 1:40:24 PM [vite] ✨ new dependencies optimized: html5-qrcode
 1:40:24 PM [vite] ✨ optimized dependencies changed. reloading
+7:57:59 AM [vite] hmr update /src/pages/inventory/AddStockForm.jsx, /src/index.css
+7:59:00 AM [vite] hmr update /src/pages/inventory/AddProductForm.jsx, /src/index.css

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, AlertCircle, CheckCircle, Scan } from 'lucide-react';
 import clsx from 'clsx';
 import ScannerModal from '../../components/ScannerModal';
@@ -22,9 +22,21 @@ const AddProductForm = ({ onSuccess }) => {
     costPrice: 0,
   });
 
+  // Pack Calculator State
+  const [usePackCalculator, setUsePackCalculator] = useState(false);
+  const [packData, setPackData] = useState({ packSize: 0, numPacks: 0 });
+
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [showScanner, setShowScanner] = useState(false);
+
+  // Effect to auto-calculate quantity when pack data changes
+  useEffect(() => {
+    if (usePackCalculator) {
+        const total = (Number(packData.packSize) || 0) * (Number(packData.numPacks) || 0);
+        setBatchData(prev => ({ ...prev, quantity: total }));
+    }
+  }, [usePackCalculator, packData]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -85,6 +97,8 @@ const AddProductForm = ({ onSuccess }) => {
       });
 
       setAddInitialStock(false);
+      setUsePackCalculator(false);
+      setPackData({ packSize: 0, numPacks: 0 });
       setBatchData({
         batchNumber: '',
         expiryDate: '',
@@ -256,20 +270,59 @@ const AddProductForm = ({ onSuccess }) => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Quantity *</label>
+                  <label className="block text-sm font-medium text-gray-700">Total Quantity (Units) *</label>
+
+                  <div className="flex items-center mb-2 mt-1">
+                      <input
+                          type="checkbox"
+                          id="usePackCalcProd"
+                          className="mr-2"
+                          checked={usePackCalculator}
+                          onChange={(e) => setUsePackCalculator(e.target.checked)}
+                      />
+                      <label htmlFor="usePackCalcProd" className="text-xs text-gray-500">Calculate from Packs</label>
+                  </div>
+
+                  {usePackCalculator && (
+                      <div className="flex space-x-2 mb-2">
+                          <div className="flex-1">
+                              <input
+                                  type="number" min="0" placeholder="Size"
+                                  className="w-full text-xs border rounded p-1"
+                                  value={packData.packSize || ''}
+                                  onChange={e => setPackData({...packData, packSize: e.target.value})}
+                              />
+                              <span className="text-[10px] text-gray-400">Units/Pack</span>
+                          </div>
+                          <div className="flex-1">
+                              <input
+                                  type="number" min="0" placeholder="Count"
+                                  className="w-full text-xs border rounded p-1"
+                                  value={packData.numPacks || ''}
+                                  onChange={e => setPackData({...packData, numPacks: e.target.value})}
+                              />
+                              <span className="text-[10px] text-gray-400">No. Packs</span>
+                          </div>
+                      </div>
+                  )}
+
                   <input
                     type="number"
                     name="quantity"
                     min="0"
+                    readOnly={usePackCalculator}
                     required={addInitialStock}
                     value={batchData.quantity}
                     onChange={handleBatchChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
+                    className={clsx(
+                        "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border",
+                        usePackCalculator && "bg-gray-100 cursor-not-allowed"
+                    )}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">MRP *</label>
+                  <label className="block text-sm font-medium text-gray-700">MRP (Per Unit) *</label>
                   <input
                     type="number"
                     name="mrp"
@@ -283,7 +336,7 @@ const AddProductForm = ({ onSuccess }) => {
                 </div>
 
                  <div>
-                  <label className="block text-sm font-medium text-gray-700">Cost Price *</label>
+                  <label className="block text-sm font-medium text-gray-700">Cost Price (Per Unit) *</label>
                   <input
                     type="number"
                     name="costPrice"
