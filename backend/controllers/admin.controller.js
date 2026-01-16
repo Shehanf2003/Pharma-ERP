@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 export const getAllUsers = async (req, res) => {
   try {
     const users = await User.find({ role: "employee" }).select(
-      "_id name email allowedModules"
+      "_id name email phoneNumber allowedModules"
     );
     res.json(users);
   } catch (error) {
@@ -38,7 +38,7 @@ export const deleteUser = async (req, res) => {
 export const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, allowedModules } = req.body;
+    const { name, phoneNumber, allowedModules } = req.body;
 
     const user = await User.findById(id);
 
@@ -47,6 +47,7 @@ export const updateUser = async (req, res) => {
     }
 
     if (name) user.name = name;
+    if (phoneNumber) user.phoneNumber = phoneNumber;
     if (allowedModules) user.allowedModules = allowedModules;
 
     const updatedUser = await user.save();
@@ -55,6 +56,7 @@ export const updateUser = async (req, res) => {
         _id: updatedUser._id,
         name: updatedUser.name,
         email: updatedUser.email,
+        phoneNumber: updatedUser.phoneNumber,
         allowedModules: updatedUser.allowedModules
     });
   } catch (error) {

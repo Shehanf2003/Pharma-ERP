@@ -2,7 +2,40 @@ import Product from '../models/Product.js';
 import Batch from '../models/Batch.js';
 import Location from '../models/Location.js';
 import StockMovement from '../models/StockMovement.js';
+import User from '../models/User.js';
+import { sendLowStockAlert } from '../services/notification.service.js';
 import { z } from 'zod';
+
+// Helper to check and notify
+const notifyIfLowStock = async (productId, locationId) => {
+    try {
+        const product = await Product.findById(productId);
+        if (!product || product.minStockLevel === undefined) return;
+
+        const totalQuantity = await Batch.checkLowStock(productId);
+
+        if (totalQuantity <= product.minStockLevel) {
+            // Find users to notify: Admins + Employees with INVENTORY module
+            const users = await User.find({
+                $or: [
+                    { role: 'admin' },
+                    { allowedModules: 'INVENTORY' }
+                ]
+            });
+
+            // Get location name for context
+            let locationName = "Unknown Location";
+            if (locationId) {
+                const loc = await Location.findById(locationId);
+                if (loc) locationName = loc.name;
+            }
+
+            await sendLowStockAlert(users, product, locationName, totalQuantity);
+        }
+    } catch (error) {
+        console.error("Error triggering low stock alert:", error);
+    }
+};
 
 const initialBatchSchema = z.object({
   batchNumber: z.string().min(1, 'Batch number is required'),
@@ -257,9 +290,11 @@ export const updateBatch = async (req, res) => {
     if (!batch) return res.status(404).json({ message: "Batch not found" });
 
     // Simplistic update for compatibility: Update the first stock location
+    let locationId = null;
     if (batch.stockDistribution.length > 0) {
         const diff = quantity - batch.stockDistribution[0].quantity;
         batch.stockDistribution[0].quantity = quantity;
+        locationId = batch.stockDistribution[0].location;
 
         await StockMovement.create({
             product: batch.productId,
@@ -276,6 +311,7 @@ export const updateBatch = async (req, res) => {
          const warehouse = await Location.findOne({ type: 'Warehouse' }) || await Location.findOne({});
          if (warehouse) {
              batch.stockDistribution.push({ location: warehouse._id, quantity });
+             locationId = warehouse._id;
 
               await StockMovement.create({
                 product: batch.productId,
@@ -291,6 +327,11 @@ export const updateBatch = async (req, res) => {
 
     await batch.save();
 
+    // Check for low stock
+    if (locationId) {
+        await notifyIfLowStock(batch.productId, locationId);
+    }
+
     res.json(batch);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -305,6 +346,9 @@ export const deleteBatch = async (req, res) => {
     if (!batch) {
         return res.status(404).json({ message: "Batch not found" });
     }
+
+    // Check stock after deletion (Total stock dropped)
+    await notifyIfLowStock(batch.productId, null); // location unknown since deleted
 
     res.json({ message: "Batch deleted successfully" });
   } catch (error) {
@@ -356,6 +400,13 @@ export const transferStock = async (req, res) => {
             reason,
             user: req.user?._id
         });
+
+        // Check if Source Location is running low (or Global stock if that's the logic)
+        // Transferring doesn't change Global stock, but we might want to know if a location is empty?
+        // Requirement says "Automated alerts for low stock". Usually implies re-ordering (Global).
+        // So Transfer doesn't affect Global stock.
+        // However, if we track per-location minimums later, we'd check here.
+        // For now, Global stock hasn't changed, so NO ALERT needed.
 
         res.json({ message: "Transfer successful", batch });
 
@@ -412,6 +463,9 @@ export const adjustStock = async (req, res) => {
             reason: `Manual Adjustment: ${reason} (Diff: ${diff})`,
             user: req.user?._id
         });
+
+        // Check Low Stock (Global might have dropped)
+        await notifyIfLowStock(batch.productId, locationId);
 
         res.json({ message: "Adjustment successful", batch });
 

@@ -1,8 +1,0 @@
-
-> backend@1.0.0 start
-> node server.js
-
-[dotenv@17.2.3] injecting env (4) from .env -- tip: 🔄 add secrets lifecycle management: https://dotenvx.com/ops
-Server is running on port:5001
-Using In-Memory MongoDB: mongodb://127.0.0.1:46143/
-MongoDB Connected: 127.0.0.1
