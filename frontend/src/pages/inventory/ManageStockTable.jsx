@@ -7,8 +7,9 @@ import {
   getExpandedRowModel
 } from '@tanstack/react-table';
 import clsx from 'clsx';
-import { Save, Trash2, ChevronRight, ChevronDown, ArrowRightLeft, Edit3, Search, Scan } from 'lucide-react';
+import { Save, Trash2, ChevronRight, ChevronDown, ArrowRightLeft, Edit3, Search, Scan, Printer } from 'lucide-react';
 import ScannerModal from '../../components/ScannerModal';
+import PrintLabelModal from '../../components/inventory/PrintLabelModal';
 
 const ManageStockTable = () => {
   const [data, setData] = useState([]);
@@ -17,6 +18,7 @@ const ManageStockTable = () => {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showScanner, setShowScanner] = useState(false);
+  const [printData, setPrintData] = useState(null); // For Print Modal
 
   // Transfer Modal State
   const [showTransfer, setShowTransfer] = useState(null);
@@ -222,6 +224,13 @@ const ManageStockTable = () => {
         id: 'actions',
         cell: ({ row }) => (
            <div className="flex space-x-2">
+               <button
+                   onClick={() => setPrintData(row.original)}
+                   className="text-gray-600 hover:text-gray-900"
+                   title="Print Label"
+               >
+                   <Printer className="w-5 h-5" />
+               </button>
                <button
                    onClick={() => openTransferModal(row.original)}
                    className="text-blue-600 hover:text-blue-900"
@@ -479,6 +488,13 @@ const ManageStockTable = () => {
             }}
           />
       )}
+
+      {/* Print Label Modal */}
+      <PrintLabelModal
+        isOpen={!!printData}
+        onClose={() => setPrintData(null)}
+        data={printData}
+      />
 
     </div>
   );
