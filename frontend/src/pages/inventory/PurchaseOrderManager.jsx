@@ -181,7 +181,7 @@ const PurchaseOrderManager = () => {
                     {po.status}
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${po.totalCost}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Rs. {po.totalCost}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   {po.status !== 'RECEIVED' && (
                     <button
