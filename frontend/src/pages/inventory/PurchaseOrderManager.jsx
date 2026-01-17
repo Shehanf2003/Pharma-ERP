@@ -226,6 +226,7 @@ const PurchaseOrderManager = () => {
                     {newPO.items.map((item, idx) => (
                         <div key={idx} className="flex gap-2 mb-2 items-end">
                             <div className="flex-1">
+                                <label className="block text-xs font-medium text-gray-500 mb-1">Product</label>
                                 <select
                                     className="w-full border p-2 rounded"
                                     value={item.product}
@@ -237,6 +238,7 @@ const PurchaseOrderManager = () => {
                                 </select>
                             </div>
                             <div className="w-20">
+                                <label className="block text-xs font-medium text-gray-500 mb-1">Quantity</label>
                                 <input
                                     type="number" min="1" placeholder="Qty"
                                     className="w-full border p-2 rounded"
@@ -246,6 +248,7 @@ const PurchaseOrderManager = () => {
                                 />
                             </div>
                              <div className="w-24">
+                                <label className="block text-xs font-medium text-gray-500 mb-1">Unit Cost</label>
                                 <input
                                     type="number" min="0" placeholder="Cost"
                                     className="w-full border p-2 rounded"
@@ -254,7 +257,7 @@ const PurchaseOrderManager = () => {
                                     required
                                 />
                             </div>
-                            <button type="button" onClick={() => handleRemoveItem(idx)} className="text-red-500 p-2"><X className="w-4 h-4"/></button>
+                            <button type="button" onClick={() => handleRemoveItem(idx)} className="text-red-500 p-2 mb-1"><X className="w-4 h-4"/></button>
                         </div>
                     ))}
                     <button type="button" onClick={handleAddItem} className="text-sm text-blue-600 hover:text-blue-800">+ Add Item</button>
