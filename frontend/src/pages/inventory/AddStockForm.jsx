@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import clsx from 'clsx';
 import { Plus } from 'lucide-react';
@@ -9,7 +9,22 @@ const AddStockForm = ({ products, onSubmit, isLoading }) => {
     handleSubmit,
     formState: { errors },
     reset,
+    setValue,
+    watch
   } = useForm();
+
+  const [usePackCalculator, setUsePackCalculator] = useState(false);
+  const [packData, setPackData] = useState({ packSize: 0, numPacks: 0 });
+
+  // Watch quantity to allow manual override if calculator is off
+  const quantity = watch('quantity');
+
+  useEffect(() => {
+    if (usePackCalculator) {
+        const total = (Number(packData.packSize) || 0) * (Number(packData.numPacks) || 0);
+        setValue('quantity', total);
+    }
+  }, [usePackCalculator, packData, setValue]);
 
   const handleFormSubmit = async (data) => {
       // Ensure types are correct for the backend
@@ -21,6 +36,8 @@ const AddStockForm = ({ products, onSubmit, isLoading }) => {
       };
       await onSubmit(formattedData);
       reset();
+      setUsePackCalculator(false);
+      setPackData({ packSize: 0, numPacks: 0 });
   };
 
   return (
@@ -90,17 +107,54 @@ const AddStockForm = ({ products, onSubmit, isLoading }) => {
 
          <div className="sm:col-span-2">
           <label htmlFor="quantity" className="block text-sm font-medium text-gray-700">
-            Quantity
+            Total Quantity (Units)
           </label>
+
+          <div className="flex items-center mb-2 mt-1">
+              <input
+                  type="checkbox"
+                  id="usePackCalc"
+                  className="mr-2"
+                  checked={usePackCalculator}
+                  onChange={(e) => setUsePackCalculator(e.target.checked)}
+              />
+              <label htmlFor="usePackCalc" className="text-xs text-gray-500">Calculate from Packs</label>
+          </div>
+
+          {usePackCalculator && (
+              <div className="flex space-x-2 mb-2">
+                  <div className="flex-1">
+                      <input
+                          type="number" min="0" placeholder="Size"
+                          className="w-full text-xs border rounded p-1"
+                          value={packData.packSize || ''}
+                          onChange={e => setPackData({...packData, packSize: e.target.value})}
+                      />
+                      <span className="text-[10px] text-gray-400">Units/Pack</span>
+                  </div>
+                  <div className="flex-1">
+                      <input
+                          type="number" min="0" placeholder="Count"
+                          className="w-full text-xs border rounded p-1"
+                          value={packData.numPacks || ''}
+                          onChange={e => setPackData({...packData, numPacks: e.target.value})}
+                      />
+                      <span className="text-[10px] text-gray-400">No. Packs</span>
+                  </div>
+              </div>
+          )}
+
           <div className="mt-1">
             <input
               type="number"
               id="quantity"
               min="0"
+              readOnly={usePackCalculator}
               {...register('quantity', { required: 'Quantity is required', min: 0 })}
               className={clsx(
                 "block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border",
-                errors.quantity && "border-red-300"
+                errors.quantity && "border-red-300",
+                usePackCalculator && "bg-gray-100 cursor-not-allowed"
               )}
             />
             {errors.quantity && <p className="mt-1 text-sm text-red-600">{errors.quantity.message}</p>}
@@ -109,7 +163,7 @@ const AddStockForm = ({ products, onSubmit, isLoading }) => {
 
         <div className="sm:col-span-1">
           <label htmlFor="mrp" className="block text-sm font-medium text-gray-700">
-            MRP
+            MRP (Per Unit)
           </label>
           <div className="mt-1">
             <input
@@ -129,7 +183,7 @@ const AddStockForm = ({ products, onSubmit, isLoading }) => {
 
         <div className="sm:col-span-1">
            <label htmlFor="costPrice" className="block text-sm font-medium text-gray-700">
-            Cost Price
+            Cost Price (Per Unit)
           </label>
           <div className="mt-1">
             <input

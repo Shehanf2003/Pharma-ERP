@@ -1,6 +1,41 @@
 import Product from '../models/Product.js';
 import Batch from '../models/Batch.js';
+import Location from '../models/Location.js';
+import StockMovement from '../models/StockMovement.js';
+import User from '../models/User.js';
+import { sendLowStockAlert } from '../services/notification.service.js';
 import { z } from 'zod';
+
+// Helper to check and notify
+const notifyIfLowStock = async (productId, locationId) => {
+    try {
+        const product = await Product.findById(productId);
+        if (!product || product.minStockLevel === undefined) return;
+
+        const totalQuantity = await Batch.checkLowStock(productId);
+
+        if (totalQuantity <= product.minStockLevel) {
+            // Find users to notify: Admins + Employees with INVENTORY module
+            const users = await User.find({
+                $or: [
+                    { role: 'admin' },
+                    { allowedModules: 'INVENTORY' }
+                ]
+            });
+
+            // Get location name for context
+            let locationName = "Unknown Location";
+            if (locationId) {
+                const loc = await Location.findById(locationId);
+                if (loc) locationName = loc.name;
+            }
+
+            await sendLowStockAlert(users, product, locationName, totalQuantity);
+        }
+    } catch (error) {
+        console.error("Error triggering low stock alert:", error);
+    }
+};
 
 const initialBatchSchema = z.object({
   batchNumber: z.string().min(1, 'Batch number is required'),
@@ -23,6 +58,8 @@ const productSchema = z.object({
   manufacturer: z.string().optional(),
   storageCondition: z.enum(['Cold Chain', 'Room Temp', 'Frozen', 'Refrigerated']).optional(),
   minStockLevel: z.coerce.number().min(0).optional(),
+  barcode: z.string().optional(),
+  taxRate: z.coerce.number().min(0).optional(),
   initialBatch: initialBatchSchema.optional(),
 });
 
@@ -54,11 +91,27 @@ export const addProduct = async (req, res) => {
 
     if (initialBatch) {
       try {
+        const warehouse = await Location.findOne({ type: 'Warehouse' }) || await Location.findOne({});
         const batch = new Batch({
           ...initialBatch,
-          productId: savedProduct._id
+          productId: savedProduct._id,
+          stockDistribution: warehouse ? [{ location: warehouse._id, quantity: initialBatch.quantity }] : []
         });
         await batch.save();
+
+        // Log movement
+        if (warehouse) {
+             await StockMovement.create({
+                product: savedProduct._id,
+                batch: batch._id,
+                type: 'INITIAL',
+                quantity: initialBatch.quantity,
+                toLocation: warehouse._id,
+                reason: 'Initial Product Creation',
+                user: req.user?._id
+             });
+        }
+
       } catch (batchError) {
         // Rollback: Delete the product if batch creation fails
         await Product.findByIdAndDelete(savedProduct._id);
@@ -107,8 +160,28 @@ export const addBatch = async (req, res) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    const batch = new Batch(validatedData);
+    // Default to Warehouse
+    const warehouse = await Location.findOne({ type: 'Warehouse' }) || await Location.findOne({});
+
+    const batch = new Batch({
+        ...validatedData,
+        stockDistribution: warehouse ? [{ location: warehouse._id, quantity: validatedData.quantity }] : []
+    });
+
     await batch.save();
+
+    if (warehouse) {
+        await StockMovement.create({
+           product: product._id,
+           batch: batch._id,
+           type: 'INITIAL',
+           quantity: validatedData.quantity,
+           toLocation: warehouse._id,
+           reason: 'Manual Batch Add',
+           user: req.user?._id
+        });
+   }
+
     res.status(201).json(batch);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -193,7 +266,8 @@ export const getInventory = async (req, res) => {
 export const getAllBatches = async (req, res) => {
   try {
     const batches = await Batch.find()
-      .populate('productId', 'name genericName')
+      .populate('productId', 'name genericName barcode')
+      .populate('stockDistribution.location', 'name') // Populate location names
       .sort({ expiryDate: 1 });
     res.json(batches);
   } catch (error) {
@@ -210,14 +284,52 @@ export const updateBatch = async (req, res) => {
         return res.status(400).json({ message: "Valid quantity is required" });
     }
 
-    const batch = await Batch.findByIdAndUpdate(
-        id,
-        { quantity },
-        { new: true }
-    );
+    // For legacy update, we just update the first location or "Main Warehouse"
+    // Ideally we should use the new transfer/adjust endpoints
+    const batch = await Batch.findById(id);
+    if (!batch) return res.status(404).json({ message: "Batch not found" });
 
-    if (!batch) {
-        return res.status(404).json({ message: "Batch not found" });
+    // Simplistic update for compatibility: Update the first stock location
+    let locationId = null;
+    if (batch.stockDistribution.length > 0) {
+        const diff = quantity - batch.stockDistribution[0].quantity;
+        batch.stockDistribution[0].quantity = quantity;
+        locationId = batch.stockDistribution[0].location;
+
+        await StockMovement.create({
+            product: batch.productId,
+            batch: batch._id,
+            type: 'ADJUSTMENT',
+            quantity: Math.abs(diff), // log the change
+            toLocation: batch.stockDistribution[0].location,
+            reason: 'Manual Quantity Override',
+            user: req.user?._id
+        });
+
+    } else {
+         // Should fallback to finding a default location
+         const warehouse = await Location.findOne({ type: 'Warehouse' }) || await Location.findOne({});
+         if (warehouse) {
+             batch.stockDistribution.push({ location: warehouse._id, quantity });
+             locationId = warehouse._id;
+
+              await StockMovement.create({
+                product: batch.productId,
+                batch: batch._id,
+                type: 'ADJUSTMENT',
+                quantity: quantity,
+                toLocation: warehouse._id,
+                reason: 'Manual Quantity Override (New Loc)',
+                user: req.user?._id
+            });
+         }
+    }
+
+    await batch.save();
+
+    // Check for low stock
+    if (locationId) {
+        await notifyIfLowStock(batch.productId, locationId);
     }
 
     res.json(batch);
@@ -235,8 +347,150 @@ export const deleteBatch = async (req, res) => {
         return res.status(404).json({ message: "Batch not found" });
     }
 
+    // Check stock after deletion (Total stock dropped)
+    await notifyIfLowStock(batch.productId, null); // location unknown since deleted
+
     res.json({ message: "Batch deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
+
+// NEW: Transfer Stock
+const transferSchema = z.object({
+    batchId: z.string(),
+    fromLocationId: z.string(),
+    toLocationId: z.string(),
+    quantity: z.number().positive(),
+    reason: z.string().optional()
+});
+
+export const transferStock = async (req, res) => {
+    try {
+        const { batchId, fromLocationId, toLocationId, quantity, reason } = transferSchema.parse(req.body);
+
+        const batch = await Batch.findById(batchId);
+        if (!batch) return res.status(404).json({ message: "Batch not found" });
+
+        const sourceStock = batch.stockDistribution.find(s => s.location.toString() === fromLocationId);
+        if (!sourceStock || sourceStock.quantity < quantity) {
+            return res.status(400).json({ message: "Insufficient stock at source location" });
+        }
+
+        // Decrement Source
+        sourceStock.quantity -= quantity;
+
+        // Increment Destination
+        const destStock = batch.stockDistribution.find(s => s.location.toString() === toLocationId);
+        if (destStock) {
+            destStock.quantity += quantity;
+        } else {
+            batch.stockDistribution.push({ location: toLocationId, quantity });
+        }
+
+        await batch.save();
+
+        await StockMovement.create({
+            product: batch.productId,
+            batch: batch._id,
+            type: 'TRANSFER',
+            quantity,
+            fromLocation: fromLocationId,
+            toLocation: toLocationId,
+            reason,
+            user: req.user?._id
+        });
+
+        // Check if Source Location is running low (or Global stock if that's the logic)
+        // Transferring doesn't change Global stock, but we might want to know if a location is empty?
+        // Requirement says "Automated alerts for low stock". Usually implies re-ordering (Global).
+        // So Transfer doesn't affect Global stock.
+        // However, if we track per-location minimums later, we'd check here.
+        // For now, Global stock hasn't changed, so NO ALERT needed.
+
+        res.json({ message: "Transfer successful", batch });
+
+    } catch (error) {
+        if (error instanceof z.ZodError) return res.status(400).json({ errors: error.errors });
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// NEW: Adjust Stock
+const adjustSchema = z.object({
+    batchId: z.string(),
+    locationId: z.string(),
+    quantity: z.number().nonnegative(),
+    reason: z.string().min(1, 'Reason is required')
+});
+
+export const adjustStock = async (req, res) => {
+    try {
+        const { batchId, locationId, quantity, reason } = adjustSchema.parse(req.body);
+
+        const batch = await Batch.findById(batchId);
+        if (!batch) return res.status(404).json({ message: "Batch not found" });
+
+        const stockEntry = batch.stockDistribution.find(s => s.location.toString() === locationId);
+
+        // Calculate diff
+        const currentQty = stockEntry ? stockEntry.quantity : 0;
+        const diff = quantity - currentQty;
+
+        if (diff === 0) return res.json({ message: "No change", batch });
+
+        // Update Stock
+        if (stockEntry) {
+            stockEntry.quantity = quantity;
+        } else {
+            batch.stockDistribution.push({ location: locationId, quantity });
+        }
+
+        await batch.save();
+
+        await StockMovement.create({
+            product: batch.productId,
+            batch: batch._id,
+            type: 'ADJUSTMENT',
+            quantity: Math.abs(diff),
+            // For adjustment, "from" or "to" depends on if we added or removed.
+            // If we added (diff > 0), it's "toLocation".
+            // If we removed (diff < 0), it's "fromLocation" ??
+            // Or just store "quantity" as signed (+/-)? StockMovement `quantity` is usually absolute.
+            // Let's stick to absolute and infer from type? No, Type is ADJUSTMENT.
+            // Let's set both for clarity or just "toLocation" as the affected location.
+            toLocation: locationId,
+            reason: `Manual Adjustment: ${reason} (Diff: ${diff})`,
+            user: req.user?._id
+        });
+
+        // Check Low Stock (Global might have dropped)
+        await notifyIfLowStock(batch.productId, locationId);
+
+        res.json({ message: "Adjustment successful", batch });
+
+    } catch (error) {
+         if (error instanceof z.ZodError) return res.status(400).json({ errors: error.errors });
+        res.status(500).json({ message: error.message });
+    }
+};
+
+
+// NEW: Get Locations
+export const getLocations = async (req, res) => {
+    try {
+        // Seed if empty
+        const count = await Location.countDocuments();
+        if (count === 0) {
+            await Location.create([
+                { name: 'Main Warehouse', type: 'Warehouse' },
+                { name: 'Pharmacy Store', type: 'Store' }
+            ]);
+        }
+
+        const locations = await Location.find();
+        res.json(locations);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+}

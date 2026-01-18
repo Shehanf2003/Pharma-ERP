@@ -27,9 +27,29 @@ const batchSchema = new mongoose.Schema({
     type: Number,
     required: true,
     default: 0
-  }
+  },
+  stockDistribution: [{
+    location: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Location',
+      required: true
+    },
+    quantity: {
+      type: Number,
+      required: true,
+      default: 0,
+      min: 0
+    }
+  }]
 }, {
   timestamps: true
+});
+
+// Middleware to sync total quantity when stockDistribution changes
+batchSchema.pre('save', function() {
+  if (this.stockDistribution && this.stockDistribution.length > 0) {
+    this.quantity = this.stockDistribution.reduce((sum, item) => sum + item.quantity, 0);
+  }
 });
 
 batchSchema.statics.checkLowStock = async function(productId) {

@@ -1,3 +1,4 @@
+
 import express from "express";
 import {
   registerUser,
@@ -9,12 +10,26 @@ import { protectRoute, requireModuleAccess } from "../middleware/auth.middleware
 
 const router = express.Router();
 
-router.post("/register", protectRoute, (req, res, next) => {
-    // Check if the requester is an admin
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: "Access Denied - Admin only" });
+import User from "../models/User.js";
+
+router.post("/register", async (req, res, next) => {
+    // Allow first user creation without auth
+    try {
+        const count = await User.countDocuments();
+        if (count === 0) {
+            return next();
+        }
+    } catch (err) {
+        return next(err);
     }
-    next();
+
+    // Otherwise, protect
+    protectRoute(req, res, () => {
+         if (req.user.role !== 'admin') {
+            return res.status(403).json({ message: "Access Denied - Admin only" });
+        }
+        next();
+    });
 }, registerUser);
 
 router.post("/login", login);
