@@ -3,7 +3,6 @@ import Batch from '../models/Batch.js';
 import Location from '../models/Location.js';
 import StockMovement from '../models/StockMovement.js';
 import User from '../models/User.js';
-import AuditLog from '../models/AuditLog.js';
 import { sendLowStockAlert } from '../services/notification.service.js';
 import { z } from 'zod';
 
@@ -278,17 +277,10 @@ export const deleteProduct = async (req, res) => {
 
         // Soft Delete
         product.isDeleted = true;
+        product.deletionReason = reason;
+        product.deletedBy = req.user?._id;
+        product.deletedAt = new Date();
         await product.save();
-
-        // Create Audit Log
-        await AuditLog.create({
-            action: 'DELETE_PRODUCT',
-            entity: 'Product',
-            entityId: product._id,
-            details: { name: product.name },
-            reason: reason,
-            user: req.user?._id
-        });
 
         res.json({ message: "Product deleted successfully" });
     } catch (error) {
