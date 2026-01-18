@@ -204,7 +204,7 @@ export const addBatch = async (req, res) => {
 
 export const getLowStockAlerts = async (req, res) => {
   try {
-    const products = await Product.find().populate('batches');
+    const products = await Product.find({ isDeleted: { $ne: true } }).populate('batches');
     const lowStockProducts = [];
 
     for (const product of products) {
@@ -233,9 +233,15 @@ export const getExpiringBatches = async (req, res) => {
         $gte: new Date(),
         $lte: ninetyDaysFromNow
       }
-    }).populate('productId', 'name genericName');
+    }).populate({
+        path: 'productId',
+        select: 'name genericName',
+        match: { isDeleted: { $ne: true } }
+    });
 
-    res.json(batches);
+    const activeBatches = batches.filter(batch => batch.productId !== null);
+
+    res.json(activeBatches);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -244,7 +250,7 @@ export const getExpiringBatches = async (req, res) => {
 // Helper to get all products with their total stock
 export const getInventory = async (req, res) => {
     try {
-        const products = await Product.find({ isDeleted: false }).lean();
+        const products = await Product.find({ isDeleted: { $ne: true } }).lean();
         const inventory = await Promise.all(products.map(async (product) => {
             const totalQuantity = await Batch.checkLowStock(product._id);
             // Get the soonest expiry date
@@ -292,10 +298,17 @@ export const deleteProduct = async (req, res) => {
 export const getAllBatches = async (req, res) => {
   try {
     const batches = await Batch.find()
-      .populate('productId', 'name genericName barcode')
+      .populate({
+        path: 'productId',
+        select: 'name genericName barcode',
+        match: { isDeleted: { $ne: true } }
+      })
       .populate('stockDistribution.location', 'name') // Populate location names
       .sort({ expiryDate: 1 });
-    res.json(batches);
+
+    const activeBatches = batches.filter(batch => batch.productId !== null);
+
+    res.json(activeBatches);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
