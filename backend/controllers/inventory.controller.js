@@ -3,6 +3,7 @@ import Batch from '../models/Batch.js';
 import Location from '../models/Location.js';
 import StockMovement from '../models/StockMovement.js';
 import User from '../models/User.js';
+import AuditLog from '../models/AuditLog.js';
 import { sendLowStockAlert } from '../services/notification.service.js';
 import { z } from 'zod';
 
@@ -244,7 +245,7 @@ export const getExpiringBatches = async (req, res) => {
 // Helper to get all products with their total stock
 export const getInventory = async (req, res) => {
     try {
-        const products = await Product.find().lean();
+        const products = await Product.find({ isDeleted: false }).lean();
         const inventory = await Promise.all(products.map(async (product) => {
             const totalQuantity = await Batch.checkLowStock(product._id);
             // Get the soonest expiry date
@@ -262,6 +263,39 @@ export const getInventory = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 }
+
+const deleteProductSchema = z.object({
+    reason: z.string().min(1, "Reason is required for deletion")
+});
+
+export const deleteProduct = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { reason } = deleteProductSchema.parse(req.body);
+
+        const product = await Product.findById(id);
+        if (!product) return res.status(404).json({ message: "Product not found" });
+
+        // Soft Delete
+        product.isDeleted = true;
+        await product.save();
+
+        // Create Audit Log
+        await AuditLog.create({
+            action: 'DELETE_PRODUCT',
+            entity: 'Product',
+            entityId: product._id,
+            details: { name: product.name },
+            reason: reason,
+            user: req.user?._id
+        });
+
+        res.json({ message: "Product deleted successfully" });
+    } catch (error) {
+        if (error instanceof z.ZodError) return res.status(400).json({ message: error.errors[0].message });
+        res.status(500).json({ message: error.message });
+    }
+};
 
 export const getAllBatches = async (req, res) => {
   try {

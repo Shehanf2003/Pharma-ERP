@@ -10,7 +10,8 @@ import {
   deleteBatch,
   transferStock,
   adjustStock,
-  getLocations
+  getLocations,
+  deleteProduct
 } from '../controllers/inventory.controller.js';
 import { protectRoute, adminRoute } from '../middleware/auth.middleware.js';
 import {
@@ -29,6 +30,7 @@ const router = express.Router();
 
 // Existing Routes
 router.post('/products', protectRoute, adminRoute, addProduct);
+router.delete('/products/:id', protectRoute, adminRoute, deleteProduct);
 router.post('/batches', protectRoute, adminRoute, addBatch);
 router.get('/alerts/low-stock', protectRoute, getLowStockAlerts);
 router.get('/alerts/expiring', protectRoute, getExpiringBatches);

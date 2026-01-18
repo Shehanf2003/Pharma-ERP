@@ -4,7 +4,8 @@ import AddProductForm from './AddProductForm';
 import ManageStockTable from './ManageStockTable';
 import SupplierManager from './SupplierManager';
 import PurchaseOrderManager from './PurchaseOrderManager';
-import { Package, PlusCircle, Boxes, ClipboardList, Truck, ShoppingCart, AlertTriangle, AlertCircle } from 'lucide-react';
+import ProductList from './ProductList';
+import { Package, PlusCircle, Boxes, ClipboardList, Truck, ShoppingCart, AlertTriangle, AlertCircle, FileText } from 'lucide-react';
 
 const InventoryDashboard = () => {
   // We don't strictly need the full inventory here, 
@@ -35,9 +36,9 @@ const InventoryDashboard = () => {
       ]);
 
       if (!invRes.ok) throw new Error('Failed to fetch inventory');
-
-      setProducts(await invRes.json());
       
+      setProducts(await invRes.json());
+
       if (lowRes.ok) {
           const low = await lowRes.json();
           setAlerts(prev => ({ ...prev, lowStock: low }));
@@ -180,6 +181,18 @@ const InventoryDashboard = () => {
           Manage Stock
         </button>
 
+        <button
+          onClick={() => setActiveTab('products-list')}
+          className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            activeTab === 'products-list'
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+          }`}
+        >
+          <FileText className="w-4 h-4 mr-2" />
+          Products
+        </button>
+
          <button
           onClick={() => setActiveTab('suppliers')}
           className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -229,6 +242,9 @@ const InventoryDashboard = () => {
           {activeTab === 'manage' && (
              // The New Manage Stock Table
              <ManageStockTable />
+          )}
+          {activeTab === 'products-list' && (
+             <ProductList />
           )}
           {activeTab === 'suppliers' && (
              <SupplierManager />

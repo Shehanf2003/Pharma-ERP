@@ -33,6 +33,10 @@ const productSchema = new mongoose.Schema({
     type: Number,
     required: true,
     default: 10
+  },
+  isDeleted: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true,
