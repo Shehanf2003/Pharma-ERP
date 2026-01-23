@@ -15,6 +15,8 @@ import UserManagement from './pages/admin/UserManagement';
 
 // Import Components
 import Navbar from './components/Navbar';
+import ReloadPrompt from './components/ReloadPrompt';
+import OfflineIndicator from './components/OfflineIndicator';
 
 // --- Internal Layout Component ---
 // This wraps all authenticated pages to ensure they have the Navbar and consistent background
@@ -22,6 +24,8 @@ const AppLayout = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
+      <ReloadPrompt />
+      <OfflineIndicator />
       {/* The Outlet renders the child route (Dashboard, Inventory, etc.) */}
       <main>
         <Outlet />
