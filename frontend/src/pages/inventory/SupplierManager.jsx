@@ -151,4 +151,6 @@ const SupplierManager = () => {
   );
 };
 
+
 export default SupplierManager;
+

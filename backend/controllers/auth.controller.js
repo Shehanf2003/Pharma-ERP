@@ -6,6 +6,7 @@ export const registerUser = async (req, res) => {
   const registerSchema = z.object({
     name: z.string().min(1, "Name is required"),
     email: z.string().email("Invalid email"),
+    phoneNumber: z.string().optional(),
     password: z.string().min(6, "Password must be at least 6 characters"),
     role: z.enum(["admin", "employee"]).optional(),
     allowedModules: z
@@ -14,7 +15,7 @@ export const registerUser = async (req, res) => {
   });
 
   try {
-    const { name, email, password, role, allowedModules } = registerSchema.parse(
+    const { name, email, phoneNumber, password, role, allowedModules } = registerSchema.parse(
       req.body
     );
 
@@ -26,6 +27,7 @@ export const registerUser = async (req, res) => {
     const user = await User.create({
       name,
       email,
+      phoneNumber,
       password,
       role: role || "employee",
       allowedModules: allowedModules || [],
@@ -37,6 +39,7 @@ export const registerUser = async (req, res) => {
         _id: user._id,
         name: user.name,
         email: user.email,
+        phoneNumber: user.phoneNumber,
         role: user.role,
         allowedModules: user.allowedModules,
       });

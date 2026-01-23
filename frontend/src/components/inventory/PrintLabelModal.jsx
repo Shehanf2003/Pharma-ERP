@@ -118,3 +118,4 @@ const PrintLabelModal = ({ isOpen, onClose, data }) => {
 };
 
 export default PrintLabelModal;
+

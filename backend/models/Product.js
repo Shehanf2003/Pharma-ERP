@@ -33,6 +33,20 @@ const productSchema = new mongoose.Schema({
     type: Number,
     required: true,
     default: 10
+  },
+  isDeleted: {
+    type: Boolean,
+    default: false
+  },
+  deletionReason: {
+    type: String
+  },
+  deletedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  deletedAt: {
+    type: Date
   }
 }, {
   timestamps: true,

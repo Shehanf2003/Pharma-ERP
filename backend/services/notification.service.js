@@ -106,4 +106,5 @@ export const sendLowStockAlert = async (users, product, locationName, currentQty
     });
 
     await Promise.all(promises);
-};
+  };
+
