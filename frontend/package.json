@@ -15,6 +15,7 @@
     "axios": "^1.6.7",
     "clsx": "^2.1.1",
     "html5-qrcode": "^2.3.8",
+    "idb": "^8.0.3",
     "lucide-react": "^0.562.0",
     "react": "^18.2.0",
     "react-barcode": "^1.6.1",

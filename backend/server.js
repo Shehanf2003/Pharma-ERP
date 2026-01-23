@@ -6,7 +6,7 @@ import { connectDB } from "./lib/db.js";
 import authRoutes from "./routes/auth.route.js";
 import inventoryRoutes from "./routes/inventory.routes.js";
 import adminRoutes from "./routes/admin.route.js";
-
+import posRoutes from "./routes/posRoutes.js";
 
 
 dotenv.config();
@@ -20,6 +20,7 @@ app.use(cookieParser());
 app.use("/api/auth", authRoutes);
 app.use("/api/inventory", inventoryRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/pos", posRoutes);
 
 
 app.listen(PORT, async () => {
