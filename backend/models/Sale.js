@@ -1,3 +1,4 @@
+
 import mongoose from 'mongoose';
 
 const saleItemSchema = new mongoose.Schema({
@@ -27,6 +28,11 @@ const saleItemSchema = new mongoose.Schema({
 });
 
 const saleSchema = new mongoose.Schema({
+  receiptNumber: {
+    type: String,
+    required: true,
+    unique: true
+  },
   items: [saleItemSchema],
   totalAmount: {
     type: Number,

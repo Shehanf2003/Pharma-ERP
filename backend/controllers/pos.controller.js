@@ -1,3 +1,4 @@
+
 import Sale from '../models/Sale.js';
 import Customer from '../models/Customer.js';
 import Prescription from '../models/Prescription.js';
@@ -74,6 +75,7 @@ export const createSale = async (req, res) => {
     }
 
     const sale = new Sale({
+      receiptNumber: `RCPT-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       items: processedItems,
       totalAmount,
       paymentMethod: validatedData.paymentMethod,
