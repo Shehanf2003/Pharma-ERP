@@ -27,6 +27,11 @@ const saleItemSchema = new mongoose.Schema({
 });
 
 const saleSchema = new mongoose.Schema({
+  receiptNumber: {
+    type: String,
+    required: true,
+    unique: true
+  },
   items: [saleItemSchema],
   totalAmount: {
     type: Number,

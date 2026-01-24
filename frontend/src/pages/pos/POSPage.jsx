@@ -103,7 +103,7 @@ const POSPage = () => {
 
   // Product Search Logic
   const filteredProducts = useMemo(() => {
-    if (!searchTerm) return [];
+    if (!searchTerm) return products;
     const term = searchTerm.toLowerCase();
     return products.filter(p =>
       p.name.toLowerCase().includes(term) ||

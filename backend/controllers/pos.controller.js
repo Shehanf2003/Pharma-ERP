@@ -74,6 +74,7 @@ export const createSale = async (req, res) => {
     }
 
     const sale = new Sale({
+      receiptNumber: `RCPT-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       items: processedItems,
       totalAmount,
       paymentMethod: validatedData.paymentMethod,
