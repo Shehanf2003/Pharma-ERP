@@ -1,5 +1,5 @@
 import express from 'express';
-import { protectRoute } from '../middleware/authMiddleware.js';
+import { protectRoute } from '../middleware/auth.middleware.js';
 import { createSale } from '../controllers/saleController.js';
 import { createCustomer, getCustomers } from '../controllers/customerController.js';
 

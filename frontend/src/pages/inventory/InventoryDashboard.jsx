@@ -1,9 +1,11 @@
-
 import React, { useState, useEffect } from 'react';
 import AddStockForm from './AddStockForm';
 import AddProductForm from './AddProductForm';
 import ManageStockTable from './ManageStockTable';
-import { Package, PlusCircle, Boxes, ClipboardList } from 'lucide-react';
+import SupplierManager from './SupplierManager';
+import PurchaseOrderManager from './PurchaseOrderManager';
+import ProductList from './ProductList';
+import { Package, PlusCircle, Boxes, ClipboardList, Truck, ShoppingCart, AlertTriangle, AlertCircle, FileText } from 'lucide-react';
 
 const InventoryDashboard = () => {
   // We don't strictly need the full inventory here, 
@@ -27,14 +29,25 @@ const InventoryDashboard = () => {
   // We fetch inventory to populate the product dropdown in AddStockForm
   const fetchProducts = async () => {
     try {
-      const response = await fetch('/api/inventory', {
-        headers: getAuthHeaders()
-      });
-      if (!response.ok) throw new Error('Failed to fetch inventory');
-      const data = await response.json();
+      const [invRes, lowRes, expRes] = await Promise.all([
+          fetch('/api/inventory', { headers: getAuthHeaders() }),
+          fetch('/api/inventory/alerts/low-stock', { headers: getAuthHeaders() }),
+          fetch('/api/inventory/alerts/expiring', { headers: getAuthHeaders() })
+      ]);
+
+      if (!invRes.ok) throw new Error('Failed to fetch inventory');
       
-      // Assuming the API returns a list that can be used for products
-      setProducts(data); 
+      setProducts(await invRes.json());
+
+      if (lowRes.ok) {
+          const low = await lowRes.json();
+          setAlerts(prev => ({ ...prev, lowStock: low }));
+      }
+      if (expRes.ok) {
+          const exp = await expRes.json();
+          setAlerts(prev => ({ ...prev, expiring: exp }));
+      }
+
     } catch (err) {
       setError(err.message);
     } finally {
@@ -167,6 +180,42 @@ const InventoryDashboard = () => {
           <ClipboardList className="w-4 h-4 mr-2" />
           Manage Stock
         </button>
+
+        <button
+          onClick={() => setActiveTab('products-list')}
+          className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            activeTab === 'products-list'
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+          }`}
+        >
+          <FileText className="w-4 h-4 mr-2" />
+          Products
+        </button>
+
+         <button
+          onClick={() => setActiveTab('suppliers')}
+          className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            activeTab === 'suppliers'
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+          }`}
+        >
+          <Truck className="w-4 h-4 mr-2" />
+          Suppliers
+        </button>
+
+         <button
+          onClick={() => setActiveTab('po')}
+          className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            activeTab === 'po'
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+          }`}
+        >
+          <ShoppingCart className="w-4 h-4 mr-2" />
+          Purchase Orders
+        </button>
       </div>
 
       <div className="space-y-8">
@@ -193,6 +242,15 @@ const InventoryDashboard = () => {
           {activeTab === 'manage' && (
              // The New Manage Stock Table
              <ManageStockTable />
+          )}
+          {activeTab === 'products-list' && (
+             <ProductList />
+          )}
+          {activeTab === 'suppliers' && (
+             <SupplierManager />
+          )}
+          {activeTab === 'po' && (
+             <PurchaseOrderManager />
           )}
         </section>
       </div>
