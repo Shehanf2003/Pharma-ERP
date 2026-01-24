@@ -1,8 +1,13 @@
 {
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "fetch-cookie": "^3.2.0",
+<<<<<<< HEAD
     "mongodb-memory-server": "^11.0.1",
     "mongoose": "^9.1.4",
+=======
+    "mongoose": "^9.1.5",
+>>>>>>> feature/pos-module-3338376601441285562
     "node-fetch": "^3.3.2",
     "nodemailer": "^7.0.12",
     "tough-cookie": "^6.0.0"
