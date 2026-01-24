@@ -6,6 +6,8 @@ import Dashboard from './pages/Dashboard';
 import ModulePage from './pages/ModulePage';
 import RegisterUser from './pages/RegisterUser';
 import InventoryDashboard from './pages/inventory/InventoryDashboard';
+import POSPage from './pages/pos/POSPage';
+import SalesHistory from './pages/pos/SalesHistory';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 function App() {
@@ -37,7 +39,8 @@ function App() {
           </Route>
 
           <Route element={<ProtectedRoute requiredModule="POS" />}>
-            <Route path="/pos" element={<ModulePage name="POS Module" endpoint="/api/auth/pos" />} />
+            <Route path="/pos" element={<POSPage />} />
+            <Route path="/pos/history" element={<SalesHistory />} />
           </Route>
 
           <Route element={<ProtectedRoute requiredModule="FINANCE" />}>

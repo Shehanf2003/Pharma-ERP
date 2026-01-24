@@ -1,6 +1,8 @@
 {
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "fetch-cookie": "^3.2.0",
+    "mongoose": "^9.1.5",
     "node-fetch": "^3.3.2",
     "tough-cookie": "^6.0.0"
   }
