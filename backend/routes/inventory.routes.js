@@ -13,7 +13,7 @@ import {
   getLocations,
   deleteProduct
 } from '../controllers/inventory.controller.js';
-import { protectRoute, adminRoute } from '../middleware/auth.middleware.js';
+import { protectRoute, adminRoute, requireModuleAccess } from '../middleware/auth.middleware.js';
 import {
     createSupplier,
     getSuppliers,
