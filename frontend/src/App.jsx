@@ -12,7 +12,6 @@ import ModulePage from './pages/ModulePage';
 import RegisterUser from './pages/RegisterUser';
 import InventoryDashboard from './pages/inventory/InventoryDashboard';
 import UserManagement from './pages/admin/UserManagement';
-import POSDashboard from './pages/pos/POSDashboard';
 
 // Import Components
 import Navbar from './components/Navbar';
@@ -71,7 +70,7 @@ function App() {
                 </Route>
 
                 <Route element={<ProtectedRoute requiredModule="POS" />}>
-                  <Route path="/pos" element={<POSDashboard />} />
+                  <Route path="/pos" element={<ModulePage name="POS Module" endpoint="/api/auth/pos" />} />
                 </Route>
 
                 <Route element={<ProtectedRoute requiredModule="FINANCE" />}>
