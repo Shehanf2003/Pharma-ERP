@@ -3,6 +3,7 @@ import { Search, ShoppingCart, Trash2, Wifi, WifiOff, User, FileText, History, R
 import { cacheProducts, getCachedProducts, savePendingSale, getPendingSales, removePendingSale } from '../../lib/offlineDb';
 import { Link } from 'react-router-dom';
 import axiosInstance from '../../lib/axios';
+import confetti from 'canvas-confetti';
 
 const POSPage = () => {
   const [products, setProducts] = useState([]);
@@ -18,6 +19,10 @@ const POSPage = () => {
   const [customerSearch, setCustomerSearch] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [amountPaid, setAmountPaid] = useState('');
+
+  // Contact Info for Ad-hoc bill
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
 
   // Prescription State
   const [prescriptionData, setPrescriptionData] = useState({
@@ -161,15 +166,31 @@ const POSPage = () => {
       })),
       paymentMethod,
       customerId: customer?._id,
+      contactEmail,
+      contactPhone,
       // prescriptionId handled if integrated, simplistic for now
     };
 
     if (!isOffline) {
       try {
         await axiosInstance.post('/pos/sales', saleData);
+
+        // Success Effect
+        confetti({
+            particleCount: 150,
+            spread: 70,
+            origin: { y: 0.6 }
+        });
+
         alert("Sale completed!");
         setCart([]);
         setShowCheckout(false);
+        // Reset checkout state
+        setCustomer(null);
+        setCustomerSearch('');
+        setContactEmail('');
+        setContactPhone('');
+
         loadProducts(); // Update stock
       } catch (e) {
         console.error(e);
@@ -336,6 +357,8 @@ const POSPage = () => {
                                      className="p-2 hover:bg-gray-100 cursor-pointer"
                                      onClick={() => {
                                          setCustomer(c);
+                                         setContactEmail(c.email || '');
+                                         setContactPhone(c.phoneNumber || '');
                                          setCustomerSearch('');
                                          setCustomers([]);
                                      }}>
@@ -347,9 +370,37 @@ const POSPage = () => {
                     {customer && (
                         <div className="bg-blue-50 p-2 rounded mt-2 flex justify-between items-center">
                             <span>{customer.name}</span>
-                            <button onClick={() => setCustomer(null)} className="text-red-500 text-sm">Remove</button>
+                            <button onClick={() => {
+                                setCustomer(null);
+                                setContactEmail('');
+                                setContactPhone('');
+                            }} className="text-red-500 text-sm">Remove</button>
                         </div>
                     )}
+                </div>
+
+                {/* Contact Info for Bill (Auto-filled or Manual) */}
+                <div className="mb-4 grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Email for Bill</label>
+                        <input
+                            type="email"
+                            className="w-full border rounded p-2"
+                            placeholder="customer@example.com"
+                            value={contactEmail}
+                            onChange={(e) => setContactEmail(e.target.value)}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Phone for Bill</label>
+                        <input
+                            type="text"
+                            className="w-full border rounded p-2"
+                            placeholder="+94..."
+                            value={contactPhone}
+                            onChange={(e) => setContactPhone(e.target.value)}
+                        />
+                    </div>
                 </div>
 
                 <div className="mb-4">

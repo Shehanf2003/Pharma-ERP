@@ -4,6 +4,7 @@ import Customer from '../models/Customer.js';
 import Prescription from '../models/Prescription.js';
 import Batch from '../models/Batch.js';
 import Product from '../models/Product.js';
+import { sendBillNotification } from '../services/notification.service.js';
 import { z } from 'zod';
 
 const saleItemSchema = z.object({
@@ -19,6 +20,8 @@ const saleSchema = z.object({
   paymentMethod: z.enum(['Cash', 'Card', 'Online']),
   customerId: z.string().optional(),
   prescriptionId: z.string().optional(),
+  contactEmail: z.string().email().optional().or(z.literal('')),
+  contactPhone: z.string().optional(),
 });
 
 const customerSchema = z.object({
@@ -81,16 +84,35 @@ export const createSale = async (req, res) => {
       paymentMethod: validatedData.paymentMethod,
       customerId: validatedData.customerId,
       prescriptionId: validatedData.prescriptionId,
+      contactEmail: validatedData.contactEmail,
+      contactPhone: validatedData.contactPhone,
       cashierId: req.user?._id // Assuming middleware populates req.user
     });
 
     await sale.save();
 
     // Update Customer Loyalty (Simple: 1 point per 100 units of currency)
+    let customerEmail = validatedData.contactEmail;
+    let customerPhone = validatedData.contactPhone;
+
     if (validatedData.customerId) {
         const points = Math.floor(totalAmount / 100);
-        await Customer.findByIdAndUpdate(validatedData.customerId, {
+        const customer = await Customer.findByIdAndUpdate(validatedData.customerId, {
             $inc: { loyaltyPoints: points }
+        }, { new: true });
+
+        // Use customer details if provided in profile and not overridden
+        if (customer) {
+            if (!customerEmail && customer.email) customerEmail = customer.email;
+            if (!customerPhone && customer.phoneNumber) customerPhone = customer.phoneNumber;
+        }
+    }
+
+    // Send Notification
+    if (customerEmail || customerPhone) {
+        // Run in background, don't await for response
+        sendBillNotification({ email: customerEmail, phone: customerPhone }, sale).catch(err => {
+            console.error("Failed to send bill notification:", err);
         });
     }
 
@@ -197,6 +219,24 @@ export const getSalesHistory = async (req, res) => {
             .sort({ createdAt: -1 })
             .limit(100);
         res.json(sales);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+export const getPublicSale = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const sale = await Sale.findById(id)
+            .populate('items.productId', 'name genericName')
+            .populate('customerId', 'name')
+            .populate('cashierId', 'name'); // Assuming we want cashier name
+
+        if (!sale) {
+            return res.status(404).json({ message: "Sale not found" });
+        }
+
+        res.json(sale);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

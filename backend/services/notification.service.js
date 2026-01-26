@@ -108,3 +108,30 @@ export const sendLowStockAlert = async (users, product, locationName, currentQty
     await Promise.all(promises);
   };
 
+export const sendBillNotification = async (contactInfo, saleData) => {
+    // Assuming Frontend is running on same host or configured via env
+    // For dev defaults:
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const billUrl = `${frontendUrl}/bill/${saleData._id}`;
+
+    const subject = `Your Receipt from Pharma ERP - ${saleData.receiptNumber}`;
+    const html = `
+        <h2>Thank you for your purchase!</h2>
+        <p>Your receipt <strong>${saleData.receiptNumber}</strong> is ready.</p>
+        <p>Total Amount: <strong>Rs. ${saleData.totalAmount}</strong></p>
+        <p>Click the link below to view your full e-bill:</p>
+        <p><a href="${billUrl}">${billUrl}</a></p>
+        <br/>
+        <p>Date: ${new Date(saleData.createdAt).toLocaleString()}</p>
+    `;
+
+    const smsMessage = `Thanks for shopping! View your bill for Rs.${saleData.totalAmount} here: ${billUrl}`;
+
+    if (contactInfo.email) {
+        await sendEmail(contactInfo.email, subject, html);
+    }
+
+    if (contactInfo.phone) {
+        await sendSMS(contactInfo.phone, smsMessage);
+    }
+};

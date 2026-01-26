@@ -5,11 +5,14 @@ import {
   getCustomers,
   addPrescription,
   getSalesHistory,
-  getPosProducts
+  getPosProducts,
+  getPublicSale
 } from '../controllers/pos.controller.js';
 import { protectRoute, requireModuleAccess } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
+
+router.get('/sales/public/:id', getPublicSale);
 
 router.post('/sales', protectRoute, requireModuleAccess('POS'), createSale);
 router.get('/sales', protectRoute, requireModuleAccess('POS'), getSalesHistory);
