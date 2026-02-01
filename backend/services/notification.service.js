@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import axios from 'axios';
 
 // Configure Nodemailer (Using Ethereal for Dev, or Environment variables for Prod)
 // In a real app, use process.env.SMTP_HOST, etc.
@@ -74,13 +75,41 @@ export const sendSMS = async (phoneNumber, message) => {
       return false;
   }
 
-  // --- INTEGRATION POINT ---
-  // Here you would make an axios call to your SMS Gateway
-  // Example:
-  // await axios.get(`https://api.dialog.lk/sms?to=${phoneNumber}&msg=${encodeURIComponent(message)}&key=YOUR_KEY`);
+  const userId = process.env.SMS_USER_ID;
+  const apiKey = process.env.SMS_API_KEY;
+  const senderId = process.env.SMS_SENDER_ID;
 
-  console.log(`[SMS GATEWAY MOCK] Sending to ${phoneNumber}: "${message}"`);
-  return true;
+  // Fallback to mock if credentials are not present
+  if (!userId || !apiKey || !senderId) {
+      console.warn("NotificationService: SMS credentials (SMS_USER_ID, SMS_API_KEY, SMS_SENDER_ID) missing. Logging only.");
+      console.log(`[SMS MOCK] To: ${phoneNumber}, Msg: "${message}"`);
+      return true; // Return true so flow continues, but warn in logs
+  }
+
+  try {
+      // Notify.lk integration (Selected for cost-effectiveness)
+      // Using GET request as per standard Notify.lk V1 API usage for simplicity
+      const response = await axios.get('https://app.notify.lk/api/v1/send', {
+          params: {
+              "user_id": userId,
+              "api_key": apiKey,
+              "sender_id": senderId,
+              "to": phoneNumber,
+              "message": message
+          }
+      });
+
+      if (response.data && response.data.status === "success") {
+          console.log(`NotificationService: SMS sent to ${phoneNumber}`);
+          return true;
+      } else {
+          console.error("NotificationService: SMS Provider Error:", response.data);
+          return false;
+      }
+  } catch (error) {
+      console.error("NotificationService: SMS failed", error.message);
+      return false;
+  }
 };
 
 export const sendLowStockAlert = async (users, product, locationName, currentQty) => {
