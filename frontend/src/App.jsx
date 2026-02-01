@@ -10,7 +10,6 @@ import RegisterUser from './pages/RegisterUser';
 import InventoryDashboard from './pages/inventory/InventoryDashboard';
 import POSPage from './pages/pos/POSPage';
 import SalesHistory from './pages/pos/SalesHistory';
-import BillView from './pages/BillView';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 import Navbar from './components/Navbar';
@@ -38,7 +37,6 @@ function App() {
           <Routes>
             {/* Public Route */}
             <Route path="/login" element={<Login />} />
-            <Route path="/bill/:id" element={<BillView />} />
 
             {/* Protected Routes Wrapper (Apply Layout & Auth Check) */}
             <Route element={<AppLayout />}>

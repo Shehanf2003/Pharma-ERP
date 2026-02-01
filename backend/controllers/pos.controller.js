@@ -200,6 +200,7 @@ export const getPosProducts = async (req, res) => {
                 name: product.name,
                 genericName: product.genericName,
                 category: product.category,
+                barcode: product.barcode,
                 batches: batches
             };
         }));

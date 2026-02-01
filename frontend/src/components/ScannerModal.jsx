@@ -69,4 +69,3 @@ const ScannerModal = ({ onClose, onScan }) => {
 };
 
 export default ScannerModal;
-
