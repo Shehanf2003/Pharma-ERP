@@ -1,14 +1,17 @@
 
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, RotateCcw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import axiosInstance from '../../lib/axios';
+import ReturnModal from './ReturnModal';
 
 const SalesHistory = () => {
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedSale, setSelectedSale] = useState(null);
 
-  useEffect(() => {
+  const fetchSales = () => {
+    setLoading(true);
     axiosInstance.get('/pos/sales')
       .then(res => {
         setSales(res.data);
@@ -18,6 +21,10 @@ const SalesHistory = () => {
         console.error(err);
         setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    fetchSales();
   }, []);
 
   return (
@@ -39,13 +46,14 @@ const SalesHistory = () => {
               <th className="p-4">Total</th>
               <th className="p-4">Payment</th>
               <th className="p-4">Status</th>
+              <th className="p-4">Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan="6" className="p-4 text-center">Loading...</td></tr>
+              <tr><td colSpan="7" className="p-4 text-center">Loading...</td></tr>
             ) : sales.length === 0 ? (
-              <tr><td colSpan="6" className="p-4 text-center text-gray-500">No sales found</td></tr>
+              <tr><td colSpan="7" className="p-4 text-center text-gray-500">No sales found</td></tr>
             ) : (
               sales.map(sale => (
                 <tr key={sale._id} className="border-b hover:bg-gray-50">
@@ -58,6 +66,24 @@ const SalesHistory = () => {
                     <span className={`px-2 py-1 rounded text-xs ${sale.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                       {sale.status}
                     </span>
+                    {sale.refundedAmount > 0 && (
+                        <div className="text-xs text-red-500 mt-1">
+                            Refunded: Rs. {sale.refundedAmount.toFixed(2)}
+                        </div>
+                    )}
+                  </td>
+                  <td className="p-4">
+                    {sale.status !== 'returned' && (
+                        <button
+                            onClick={() => setSelectedSale(sale)}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded text-sm font-medium transition"
+                        >
+                            <RotateCcw size={16} /> Return
+                        </button>
+                    )}
+                    {sale.status === 'returned' && (
+                         <span className="text-xs text-gray-400">Fully Returned</span>
+                    )}
                   </td>
                 </tr>
               ))
@@ -65,6 +91,17 @@ const SalesHistory = () => {
           </tbody>
         </table>
       </div>
+
+      {selectedSale && (
+          <ReturnModal
+             sale={selectedSale}
+             onClose={() => setSelectedSale(null)}
+             onSuccess={() => {
+                 setSelectedSale(null);
+                 fetchSales();
+             }}
+          />
+      )}
     </div>
   );
 };

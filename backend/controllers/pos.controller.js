@@ -4,6 +4,7 @@ import Customer from '../models/Customer.js';
 import Prescription from '../models/Prescription.js';
 import Batch from '../models/Batch.js';
 import Product from '../models/Product.js';
+import StockMovement from '../models/StockMovement.js';
 import { sendBillNotification } from '../services/notification.service.js';
 import { z } from 'zod';
 
@@ -172,6 +173,107 @@ export const addPrescription = async (req, res) => {
         const prescription = new Prescription(validatedData);
         await prescription.save();
         res.status(201).json(prescription);
+    } catch (error) {
+        if (error instanceof z.ZodError) {
+            return res.status(400).json({ errors: error.errors });
+        }
+        res.status(500).json({ message: error.message });
+    }
+};
+
+const returnItemSchema = z.object({
+    batchId: z.string(),
+    quantity: z.number().int().positive()
+});
+
+const returnSchema = z.object({
+    items: z.array(returnItemSchema).min(1)
+});
+
+export const processReturn = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const validatedData = returnSchema.parse(req.body);
+
+        const sale = await Sale.findById(id);
+        if (!sale) return res.status(404).json({ message: "Sale not found" });
+
+        if (sale.status === 'returned') {
+            return res.status(400).json({ message: "Sale already fully returned" });
+        }
+
+        let refundTotal = 0;
+        let pointsToDeduct = 0;
+        let allReturned = true;
+
+        for (const returnItem of validatedData.items) {
+            // Find item in sale
+            const saleItem = sale.items.find(item => item.batchId.toString() === returnItem.batchId);
+
+            if (!saleItem) {
+                return res.status(400).json({ message: `Batch ${returnItem.batchId} not found in this sale` });
+            }
+
+            const currentReturned = saleItem.returnedQuantity || 0;
+            const remainingQty = saleItem.quantity - currentReturned;
+
+            if (returnItem.quantity > remainingQty) {
+                return res.status(400).json({
+                    message: `Cannot return ${returnItem.quantity}. Only ${remainingQty} remaining for this item.`
+                });
+            }
+
+            // Update Sale Item
+            saleItem.returnedQuantity = currentReturned + returnItem.quantity;
+
+            // Calculate Refund (Price - Discount per item approx?)
+            const effectiveUnitPrice = ((saleItem.price * saleItem.quantity) - saleItem.discount) / saleItem.quantity;
+            refundTotal += effectiveUnitPrice * returnItem.quantity;
+
+            // Restock Batch
+            await Batch.findByIdAndUpdate(returnItem.batchId, {
+                $inc: { quantity: returnItem.quantity }
+            });
+
+            // Log Movement
+            await StockMovement.create({
+                product: saleItem.productId,
+                batch: saleItem.batchId,
+                type: 'RETURN',
+                quantity: returnItem.quantity,
+                reason: `Return for Sale ${sale.receiptNumber}`,
+                referenceId: sale._id,
+                user: req.user?._id
+            });
+        }
+
+        // Check if all items are fully returned
+        for (const item of sale.items) {
+            if ((item.returnedQuantity || 0) < item.quantity) {
+                allReturned = false;
+                break;
+            }
+        }
+
+        sale.refundedAmount = (sale.refundedAmount || 0) + refundTotal;
+        if (allReturned) {
+            sale.status = 'returned';
+        }
+
+        await sale.save();
+
+        // Deduct Loyalty Points
+        if (sale.customerId) {
+            pointsToDeduct = Math.floor(refundTotal / 100);
+            if (pointsToDeduct > 0) {
+                await Customer.findByIdAndUpdate(sale.customerId, {
+                    $inc: { loyaltyPoints: -pointsToDeduct }
+                });
+            }
+        }
+
+        res.json({ message: "Return processed successfully", sale, refundTotal });
+
     } catch (error) {
         if (error instanceof z.ZodError) {
             return res.status(400).json({ errors: error.errors });

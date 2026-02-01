@@ -24,6 +24,10 @@ const saleItemSchema = new mongoose.Schema({
   discount: {
     type: Number,
     default: 0
+  },
+  returnedQuantity: {
+    type: Number,
+    default: 0
   }
 });
 
@@ -37,6 +41,10 @@ const saleSchema = new mongoose.Schema({
   totalAmount: {
     type: Number,
     required: true
+  },
+  refundedAmount: {
+    type: Number,
+    default: 0
   },
   paymentMethod: {
     type: String,
