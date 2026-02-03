@@ -8,27 +8,32 @@ The POS system implements a **Level 2 Offline (Read-Write)** capability. This en
 | Library | Version | Purpose |
 |---------|---------|---------|
 | **`idb`** | `^8.0.3` | A Promise-based wrapper for IndexedDB. Handles local storage of products and pending sales. |
+| **`vite-plugin-pwa`** | `^1.2.0` | Handles the Application Shell (HTML/JS/CSS) caching and Installability. |
 | **`react-hot-toast`** | `^2.6.0` | Provides non-intrusive notifications (e.g., "Offline mode", "Syncing..."). |
 | **`axios`** | `^1.6.7` | Handles HTTP requests. Offline logic is triggered when Axios calls fail. |
-| **`lucide-react`** | `^0.562.0` | Provides UI icons (`Wifi`, `WifiOff`, `RefreshCw`) for status indication. |
 
 ## Architecture & Workflow
 
-### 1. Database Initialization
-Located in `frontend/src/lib/offlineDb.js`.
-- Creates a persistent IndexedDB database named `pos-db`.
+### 1. Application Shell (PWA Layer)
+**Tool**: `vite-plugin-pwa`
+- **Role**: Ensures the application *loads* when offline.
+- **Mechanism**:
+  - Uses a Service Worker (Workbox) to cache static assets (`js`, `css`, `html`, `png`).
+  - Provides a `manifest.webmanifest` allowing the app to be installed on the desktop/mobile home screen.
+  - configured with `registerType: 'autoUpdate'` for seamless updates.
+
+### 2. Database Initialization (Data Layer)
+**Tool**: `idb` (IndexedDB)
+- **Location**: `frontend/src/lib/offlineDb.js`.
+- **Role**: Stores dynamic business data.
 - **Stores**:
   - `products`: Caches the full product catalog (including batches and barcodes).
   - `pendingSales`: Queues sales transactions created while offline.
 
-### 2. Data Caching (Read Strategy)
-Located in `frontend/src/pages/pos/POSPage.jsx`.
+### 3. Data Caching (Read Strategy)
+**Location**: `frontend/src/pages/pos/POSPage.jsx`.
 - **Online Boot**: Fetches data from `/api/pos/products` and immediately saves it to IndexedDB via `cacheProducts()`.
 - **Offline Boot**: If the API call fails or the device is offline, falls back to `getCachedProducts()` to load data from local storage.
-
-### 3. Offline Detection
-- Uses `window.addEventListener` for `online` and `offline` events.
-- Updates the `isOffline` state to toggle UI indicators (Green/Red WiFi icon).
 
 ### 4. Transaction Handling (Write Strategy)
 When a sale is confirmed:
