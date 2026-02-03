@@ -7,6 +7,7 @@ import Product from '../models/Product.js';
 import StockMovement from '../models/StockMovement.js';
 import { sendBillNotification } from '../services/notification.service.js';
 import { z } from 'zod';
+import mongoose from 'mongoose';
 
 const saleItemSchema = z.object({
   productId: z.string(),
@@ -40,6 +41,9 @@ const prescriptionSchema = z.object({
 });
 
 export const createSale = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const validatedData = saleSchema.parse(req.body);
 
@@ -48,34 +52,62 @@ export const createSale = async (req, res) => {
 
     // Verify stock and prices
     for (const item of validatedData.items) {
-      const batch = await Batch.findById(item.batchId);
+      // Use session for read to ensure we see consistent state within transaction
+      const batch = await Batch.findById(item.batchId).session(session);
+
       if (!batch) {
-        return res.status(404).json({ message: `Batch not found for product ${item.productId}` });
+        throw new Error(`Batch not found for product ${item.productId}`);
       }
 
       if (batch.productId.toString() !== item.productId) {
-        return res.status(400).json({ message: `Batch ${batch.batchNumber} does not belong to product ${item.productId}` });
+        throw new Error(`Batch ${batch.batchNumber} does not belong to product ${item.productId}`);
       }
 
       if (batch.quantity < item.quantity) {
-        return res.status(400).json({ message: `Insufficient stock for batch ${batch.batchNumber}. Available: ${batch.quantity}` });
+        throw new Error(`Insufficient stock for batch ${batch.batchNumber}. Available: ${batch.quantity}`);
       }
 
       // NMRA Enforcement: Price cannot exceed MRP
       if (item.price > batch.mrp) {
-        return res.status(400).json({ message: `Price for batch ${batch.batchNumber} cannot exceed MRP (${batch.mrp})` });
+        throw new Error(`Price for batch ${batch.batchNumber} cannot exceed MRP (${batch.mrp})`);
       }
 
       totalAmount += (item.price * item.quantity) - item.discount;
       processedItems.push(item);
-    }
 
-    // Process Updates (Optimistic locking or simple decrement since we are in single instance mostly)
-    // Note: In a real distributed system, we'd use transactions.
-    for (const item of processedItems) {
-      await Batch.findByIdAndUpdate(item.batchId, {
-        $inc: { quantity: -item.quantity }
-      });
+      // Deduct Stock Logic
+      // We need to handle stockDistribution if present to ensure consistency
+      if (batch.stockDistribution && batch.stockDistribution.length > 0) {
+        let remainingQty = item.quantity;
+
+        // Iterate through distribution and deduct from available slots
+        // We prioritize slots with stock.
+        // Note: Without specific location input, we deduct from *any* available slot.
+        for (const stockEntry of batch.stockDistribution) {
+          if (remainingQty <= 0) break;
+          if (stockEntry.quantity > 0) {
+            const deduct = Math.min(stockEntry.quantity, remainingQty);
+            stockEntry.quantity -= deduct;
+            remainingQty -= deduct;
+          }
+        }
+
+        if (remainingQty > 0) {
+           // This means stockDistribution total was less than batch.quantity (data inconsistency)
+           // or we just ran out.
+           throw new Error(`Insufficient stock in distribution locations for batch ${batch.batchNumber}`);
+        }
+
+        // The pre-save hook in Batch model will update batch.quantity based on stockDistribution
+      } else {
+        // Legacy fallback: direct quantity deduction
+        batch.quantity -= item.quantity;
+      }
+
+      // Save the batch with session.
+      // Mongoose handles optimistic concurrency control via __v versioning.
+      // If another transaction modified this batch, this save will fail, aborting the transaction.
+      await batch.save({ session });
     }
 
     const sale = new Sale({
@@ -90,7 +122,7 @@ export const createSale = async (req, res) => {
       cashierId: req.user?._id // Assuming middleware populates req.user
     });
 
-    await sale.save();
+    await sale.save({ session });
 
     // Update Customer Loyalty (Simple: 1 point per 100 units of currency)
     let customerEmail = validatedData.contactEmail;
@@ -100,7 +132,7 @@ export const createSale = async (req, res) => {
         const points = Math.floor(totalAmount / 100);
         const customer = await Customer.findByIdAndUpdate(validatedData.customerId, {
             $inc: { loyaltyPoints: points }
-        }, { new: true });
+        }, { new: true, session });
 
         // Use customer details if provided in profile and not overridden
         if (customer) {
@@ -109,7 +141,10 @@ export const createSale = async (req, res) => {
         }
     }
 
-    // Send Notification
+    await session.commitTransaction();
+    session.endSession();
+
+    // Send Notification (Outside transaction as it is external side effect)
     if (customerEmail || customerPhone) {
         // Run in background, don't await for response
         sendBillNotification({ email: customerEmail, phone: customerPhone }, sale).catch(err => {
@@ -120,10 +155,16 @@ export const createSale = async (req, res) => {
     res.status(201).json(sale);
 
   } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+
     if (error instanceof z.ZodError) {
       return res.status(400).json({ errors: error.errors });
     }
-    res.status(500).json({ message: error.message });
+    // Handle specific errors like "Batch not found" with 400 or 404 as appropriate,
+    // but for now 400 is safe for business logic failures.
+    console.error("Sale creation failed:", error);
+    res.status(400).json({ message: error.message });
   }
 };
 
