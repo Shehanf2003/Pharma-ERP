@@ -10,6 +10,7 @@ import RegisterUser from './pages/RegisterUser';
 import InventoryDashboard from './pages/inventory/InventoryDashboard';
 import POSPage from './pages/pos/POSPage';
 import SalesHistory from './pages/pos/SalesHistory';
+import UserManagement from './pages/admin/UserManagement';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 import Navbar from './components/Navbar';
@@ -44,6 +45,7 @@ function App() {
               <Route element={<ProtectedRoute />}>
                  <Route path="/" element={<Dashboard />} />
                  <Route path="/register-user" element={<RegisterUser />} />
+                 <Route path="/admin/users" element={<UserManagement />} />
               </Route>
 
               <Route element={<ProtectedRoute requiredModule="INVENTORY" />}>
