@@ -1,179 +1,235 @@
-import React from 'react';
-import { useAuth } from '../context/AuthContext';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import Sidebar from './dashboard/Sidebar';
+import StatCard from './dashboard/StatCard';
+import RevenueChart from './dashboard/RevenueChart';
+import axiosInstance from '../lib/axios';
+import { Package, ShoppingCart, TrendingUp, AlertCircle, Plus, DollarSign } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [showExpenseModal, setShowExpenseModal] = useState(false);
+  const [newExpense, setNewExpense] = useState({ description: '', amount: '', category: 'Other' });
 
-  const canAccess = (module) => {
-    if (user.role === 'admin') return true;
-    return user.allowedModules && user.allowedModules.includes(module);
+  const fetchStats = async () => {
+    try {
+      const res = await axiosInstance.get('/dashboard/stats');
+      setStats(res.data);
+    } catch (error) {
+      console.error("Error fetching dashboard stats", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Define modules with added icons and Tailwind color themes
-  const modules = [
-    { 
-      name: 'Inventory', 
-      id: 'INVENTORY', 
-      path: '/inventory', 
-      theme: 'cyan',
-      description: 'Stock levels, batches & suppliers',
-      icon: (
-        <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-        </svg>
-      )
-    },
-    { 
-      name: 'POS', 
-      id: 'POS', 
-      path: '/pos', 
-      theme: 'emerald',
-      description: 'Billing & customer checkout',
-      icon: (
-        <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-        </svg>
-      )
-    },
-    { 
-      name: 'Finance', 
-      id: 'FINANCE', 
-      path: '/finance', 
-      theme: 'amber',
-      description: 'Ledgers, expenses & profits',
-      icon: (
-        <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      )
-    },
-    { 
-      name: 'Reporting', 
-      id: 'REPORTING', 
-      path: '/reporting', 
-      theme: 'indigo',
-      description: 'Analytics & performance insights',
-      icon: (
-        <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-        </svg>
-      )
-    },
-  ];
+  useEffect(() => {
+    fetchStats();
+  }, []);
 
-  // Helper to get color classes dynamically based on the module theme
-  const getThemeClasses = (theme, isLocked) => {
-    if (isLocked) return 'bg-gray-100 border-gray-200 text-gray-400';
-    
-    const themes = {
-      cyan: 'bg-white border-cyan-100 hover:border-cyan-300 hover:shadow-cyan-100 text-cyan-600',
-      emerald: 'bg-white border-emerald-100 hover:border-emerald-300 hover:shadow-emerald-100 text-emerald-600',
-      amber: 'bg-white border-amber-100 hover:border-amber-300 hover:shadow-amber-100 text-amber-600',
-      indigo: 'bg-white border-indigo-100 hover:border-indigo-300 hover:shadow-indigo-100 text-indigo-600',
-    };
-    return themes[theme] || themes.cyan;
+  const handleAddExpense = async (e) => {
+    e.preventDefault();
+    try {
+        await axiosInstance.post('/finance', newExpense);
+        toast.success('Expense added!');
+        setShowExpenseModal(false);
+        setNewExpense({ description: '', amount: '', category: 'Other' });
+        fetchStats(); // Update dashboard
+    } catch (error) {
+        toast.error('Failed to add expense');
+    }
   };
+
+  if (loading) {
+    return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6 md:p-10">
-      <div className="max-w-7xl mx-auto">
-        
-        {/* Header Section */}
-        <div className="mb-10 flex flex-col md:flex-row md:items-center md:justify-between">
-          <div>
-            <h2 className="text-3xl font-bold text-gray-900">Dashboard</h2>
-            <p className="mt-1 text-gray-500">Welcome back, <span className="font-semibold text-gray-800">{user.name}</span></p>
-          </div>
-          <div className="mt-4 md:mt-0">
-             <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                {user.role === 'admin' ? 'Administrator' : 'Staff Account'}
-             </span>
-          </div>
-        </div>
+    <div className="min-h-screen bg-gray-50">
+      {/* Sidebar Layout */}
+      <Sidebar activeModule="DASHBOARD" />
 
-        {/* Admin Actions Section (Merged from Feature Branch) */}
-        {user.role === 'admin' && (
-          <div className="mb-8 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Admin Controls</h3>
-            <div className="flex flex-wrap gap-4">
-               <Link 
-                 to="/register-user" 
-                 className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors flex items-center"
-               >
-                 <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                 </svg>
-                 Register New User
-               </Link>
-               <Link 
-                 to="/admin/users" 
-                 className="px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-medium rounded-lg transition-colors flex items-center"
-               >
-                 <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                 </svg>
-                 Manage Employees
-               </Link>
+      {/* Main Content Area - offset by sidebar width */}
+      <div className="ml-64 p-8 pt-24"> {/* pt-24 to clear fixed Navbar if it exists, or just spacing */}
+
+        <div className="flex justify-between items-center mb-8">
+            <div>
+                <h1 className="text-2xl font-bold text-gray-900">Dashboard Overview</h1>
+                <p className="text-gray-500 mt-1">Real-time insights and performance metrics.</p>
             </div>
-          </div>
-        )}
-
-        {/* Modules Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {modules.map((mod) => {
-            const hasAccess = canAccess(mod.id);
-            const themeClasses = getThemeClasses(mod.theme, !hasAccess);
-
-            return (
-              <div 
-                key={mod.id} 
-                className={`
-                  relative flex flex-col p-6 rounded-2xl border transition-all duration-300 ease-in-out
-                  ${themeClasses}
-                  ${hasAccess ? 'shadow-sm hover:shadow-lg hover:-translate-y-1 cursor-pointer' : 'cursor-not-allowed opacity-75'}
-                `}
-              >
-                {/* Icon Container */}
-                <div className={`p-3 rounded-xl w-fit mb-4 ${hasAccess ? `bg-${mod.theme}-50` : 'bg-gray-200'}`}>
-                  {mod.icon}
-                </div>
-
-                {/* Text Content */}
-                <h3 className={`text-xl font-bold mb-2 ${hasAccess ? 'text-gray-900' : 'text-gray-500'}`}>
-                  {mod.name}
-                </h3>
-                <p className="text-sm text-gray-500 mb-6 flex-grow">
-                  {mod.description}
-                </p>
-
-                {/* Action Area */}
-                <div className="mt-auto">
-                  {hasAccess ? (
-                    <Link 
-                      to={mod.path} 
-                      className={`
-                        inline-flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors
-                        bg-${mod.theme}-600 hover:bg-${mod.theme}-700
-                        focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-${mod.theme}-500
-                      `}
-                    >
-                      Access Module &rarr;
-                    </Link>
-                  ) : (
-                    <div className="flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-gray-500 bg-gray-100 rounded-lg border border-gray-200">
-                      <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                      </svg>
-                      Access Locked
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+            <div className="flex gap-3">
+                 <button
+                   onClick={() => setShowExpenseModal(true)}
+                   className="flex items-center px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 shadow-sm transition-colors text-sm font-medium"
+                 >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Expense
+                 </button>
+                 <button
+                   onClick={() => window.location.href='/pos'}
+                   className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-sm transition-colors text-sm font-medium"
+                 >
+                    <ShoppingCart className="w-4 h-4 mr-2" />
+                    New Sale
+                 </button>
+            </div>
         </div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+           <StatCard
+             title="Total Revenue"
+             value={`Rs. ${stats?.finance?.revenue?.toLocaleString() || 0}`}
+             icon={DollarSign}
+             color="emerald"
+             trend="up"
+             trendValue="+12%"
+           />
+           <StatCard
+             title="Today's Sales"
+             value={stats?.pos?.todayCount || 0}
+             icon={ShoppingCart}
+             color="indigo"
+           />
+            <StatCard
+             title="Low Stock Items"
+             value={stats?.inventory?.activeProducts || 0}
+             icon={AlertCircle}
+             color="rose"
+             trend={stats?.inventory?.activeProducts > 0 ? 'down' : 'up'} // 'down' is bad here visually, but contextually 'red' means alert
+             trendValue="Needs Action"
+           />
+           <StatCard
+             title="Net Profit (Month)"
+             value={`Rs. ${stats?.finance?.profit?.toLocaleString() || 0}`}
+             icon={TrendingUp}
+             color="amber"
+           />
+        </div>
+
+        {/* Charts & Details Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Main Chart */}
+            <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-bold text-gray-900">Sales Trend</h3>
+                    <select className="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2">
+                        <option>Last 7 Days</option>
+                        <option>This Month</option>
+                    </select>
+                </div>
+                <RevenueChart data={stats?.chartData || []} />
+            </div>
+
+            {/* Side Panel (e.g. Recent Activity or Quick Actions) */}
+            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col">
+                <h3 className="text-lg font-bold text-gray-900 mb-6">Quick Stats</h3>
+
+                <div className="space-y-6">
+                    <div>
+                        <div className="flex justify-between text-sm font-medium mb-2">
+                            <span className="text-gray-500">Inventory Health</span>
+                            <span className="text-indigo-600">Good</span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-2">
+                            <div className="bg-indigo-500 h-2 rounded-full" style={{ width: '85%' }}></div>
+                        </div>
+                    </div>
+
+                    <div>
+                         <div className="flex justify-between text-sm font-medium mb-2">
+                            <span className="text-gray-500">Monthly Target</span>
+                            <span className="text-emerald-600">Rs. {stats?.finance?.revenue?.toLocaleString()} / 500k</span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-2">
+                            <div className="bg-emerald-500 h-2 rounded-full" style={{ width: `${Math.min((stats?.finance?.revenue / 500000) * 100, 100)}%` }}></div>
+                        </div>
+                    </div>
+
+                    <div className="pt-6 border-t border-gray-100 mt-auto">
+                        <h4 className="text-sm font-semibold text-gray-900 mb-3">Expiring Batches (Next 7 Days)</h4>
+                        <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+                            <div className="flex items-center text-red-700">
+                                <Package className="w-5 h-5 mr-3" />
+                                <span className="text-sm font-medium">Warning</span>
+                            </div>
+                            <span className="text-lg font-bold text-red-700">{stats?.inventory?.expiringBatches || 0}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
       </div>
+
+      {/* Expense Modal */}
+      {showExpenseModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 transform transition-all">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Add Quick Expense</h3>
+                <form onSubmit={handleAddExpense}>
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                            <input
+                              type="text"
+                              required
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                              value={newExpense.description}
+                              onChange={e => setNewExpense({...newExpense, description: e.target.value})}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Amount (Rs)</label>
+                            <input
+                              type="number"
+                              required
+                              min="0"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                              value={newExpense.amount}
+                              onChange={e => setNewExpense({...newExpense, amount: e.target.value})}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                            <select
+                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                               value={newExpense.category}
+                               onChange={e => setNewExpense({...newExpense, category: e.target.value})}
+                            >
+                                <option value="Rent">Rent</option>
+                                <option value="Utilities">Utilities</option>
+                                <option value="Salaries">Salaries</option>
+                                <option value="Supplies">Supplies</option>
+                                <option value="Maintenance">Maintenance</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div className="mt-6 flex justify-end gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setShowExpenseModal(false)}
+                          className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg"
+                        >
+                            Save Expense
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+      )}
+
     </div>
   );
 };

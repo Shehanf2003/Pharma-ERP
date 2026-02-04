@@ -2,7 +2,10 @@
 > backend@1.0.0 start
 > node server.js
 
-[dotenv@17.2.3] injecting env (4) from .env -- tip: ✅ audit secrets and track compliance: https://dotenvx.com/ops
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 🔑 add access controls to secrets: https://dotenvx.com/ops
 Server is running on port:5001
-Using In-Memory MongoDB: mongodb://127.0.0.1:41375/
+Downloading MongoDB "8.2.1": 0% (0mb / 122mb)
+Downloading MongoDB "8.2.1": 100% (122mb / 122mb)
+Downloading MongoDB "8.2.1": 100% (0mb / 0mb)
+Using In-Memory MongoDB (Replica Set): mongodb://127.0.0.1:45879/?replicaSet=testset
 MongoDB Connected: 127.0.0.1
