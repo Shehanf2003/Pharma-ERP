@@ -6,8 +6,10 @@ import {
 import { cacheProducts, getCachedProducts, savePendingSale, getPendingSales, removePendingSale } from '../../lib/offlineDb';
 import { Link } from 'react-router-dom';
 import axiosInstance from '../../lib/axios';
+import { getCurrentShift, startShift, endShift, initiatePayment } from '../../lib/financeApi';
 import ScannerModal from '../../components/ScannerModal';
 import toast from 'react-hot-toast';
+import { QRCodeSVG } from 'qrcode.react'; // Need to install this? Or just render text/image
 
 const POSPage = () => {
   const [products, setProducts] = useState([]);
@@ -18,6 +20,16 @@ const POSPage = () => {
   // UI State
   const [showCheckout, setShowCheckout] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+
+  // Shift Management State
+  const [shift, setShift] = useState(null);
+  const [showOpenShiftModal, setShowOpenShiftModal] = useState(false);
+  const [showCloseShiftModal, setShowCloseShiftModal] = useState(false);
+  const [shiftInputs, setShiftInputs] = useState({ openingBalance: '', closingBalance: '', notes: '' });
+
+  // Payment Gateway State
+  const [showPaymentGateway, setShowPaymentGateway] = useState(false);
+  const [paymentTxn, setPaymentTxn] = useState(null);
 
   // Checkout State
   const [customer, setCustomer] = useState(null);
@@ -32,6 +44,7 @@ const POSPage = () => {
   const searchInputRef = useRef(null);
 
   useEffect(() => {
+    checkShiftStatus();
     const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);
     window.addEventListener('online', handleOnline);
@@ -71,6 +84,45 @@ const POSPage = () => {
         syncPendingSales();
     }
   }, [isOffline]);
+
+  const checkShiftStatus = async () => {
+      try {
+          if (isOffline) return;
+          const current = await getCurrentShift();
+          if (!current) {
+              setShowOpenShiftModal(true);
+          } else {
+              setShift(current);
+          }
+      } catch (error) {
+          console.error("Shift check failed", error);
+      }
+  };
+
+  const handleStartShift = async (e) => {
+      e.preventDefault();
+      try {
+          const res = await startShift(Number(shiftInputs.openingBalance));
+          setShift(res);
+          setShowOpenShiftModal(false);
+          toast.success("Shift started");
+      } catch (error) {
+          toast.error("Failed to start shift");
+      }
+  };
+
+  const handleEndShift = async (e) => {
+      e.preventDefault();
+      try {
+          await endShift({ closingBalance: Number(shiftInputs.closingBalance), notes: shiftInputs.notes });
+          setShift(null);
+          setShowCloseShiftModal(false);
+          setShowOpenShiftModal(true); // Prompt to open new shift or logout (handled by user action usually, but we force open flow)
+          toast.success("Shift closed");
+      } catch (error) {
+          toast.error("Failed to close shift");
+      }
+  };
 
   const loadProducts = async () => {
     try {
@@ -210,6 +262,22 @@ const POSPage = () => {
   const totalAmount = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
   const handleCheckoutSubmit = async () => {
+      if (paymentMethod === 'Online' && !isOffline) {
+          try {
+              const res = await initiatePayment({ amount: totalAmount, provider: 'payhere' });
+              setPaymentTxn(res);
+              setShowPaymentGateway(true);
+              // Wait for user to complete payment in modal
+              return;
+          } catch (e) {
+              toast.error("Failed to initiate payment gateway");
+              return;
+          }
+      }
+      await completeSale();
+  };
+
+  const completeSale = async () => {
     const saleData = {
       items: cart.map(item => ({
         productId: item.productId,
@@ -230,6 +298,7 @@ const POSPage = () => {
             toast.success("Sale completed successfully!");
             setCart([]);
             setShowCheckout(false);
+            setShowPaymentGateway(false); // Ensure closed
             setCustomer(null);
             loadProducts();
         } else {
@@ -248,6 +317,11 @@ const POSPage = () => {
              toast.error(e.response?.data?.message || "Sale failed");
         }
     }
+  };
+
+  const handlePaymentSuccess = () => {
+      toast.success("Payment Verified");
+      completeSale();
   };
 
   const searchCustomers = async (term) => {
@@ -283,6 +357,11 @@ const POSPage = () => {
            <Link to="/pos/history" className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded text-sm transition-colors">
                <History size={18} /> History
            </Link>
+           {shift && (
+             <button onClick={() => setShowCloseShiftModal(true)} className="flex items-center gap-2 bg-rose-600 hover:bg-rose-700 px-3 py-1.5 rounded text-sm transition-colors">
+                Close Shift
+             </button>
+           )}
            <div className="w-8 h-8 bg-emerald-600 rounded-full flex items-center justify-center font-bold">
               U
            </div>
@@ -457,6 +536,91 @@ const POSPage = () => {
       {/* MODALS */}
       {isScannerOpen && (
           <ScannerModal onClose={() => setIsScannerOpen(false)} onScan={handleScan} />
+      )}
+
+      {showOpenShiftModal && (
+          <div className="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-8 text-center">
+                  <h2 className="text-2xl font-bold text-slate-800 mb-2">Start Shift</h2>
+                  <p className="text-slate-500 mb-6">Enter the opening cash balance to begin.</p>
+                  <form onSubmit={handleStartShift}>
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        className="w-full text-center text-3xl font-bold py-4 border-2 border-slate-200 rounded-xl focus:border-emerald-500 outline-none mb-6"
+                        placeholder="0.00"
+                        value={shiftInputs.openingBalance}
+                        onChange={e => setShiftInputs({...shiftInputs, openingBalance: e.target.value})}
+                      />
+                      <button type="submit" className="w-full py-4 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-all">
+                          Open Register
+                      </button>
+                  </form>
+              </div>
+          </div>
+      )}
+
+      {showCloseShiftModal && (
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+                  <h2 className="text-xl font-bold text-slate-800 mb-4">End Shift</h2>
+                  <form onSubmit={handleEndShift}>
+                      <div className="mb-4">
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Closing Cash Balance</label>
+                          <input
+                            type="number"
+                            required
+                            min="0"
+                            className="w-full border-slate-300 rounded-lg"
+                            value={shiftInputs.closingBalance}
+                            onChange={e => setShiftInputs({...shiftInputs, closingBalance: e.target.value})}
+                          />
+                      </div>
+                      <div className="mb-6">
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
+                          <textarea
+                            className="w-full border-slate-300 rounded-lg"
+                            rows="3"
+                            value={shiftInputs.notes}
+                            onChange={e => setShiftInputs({...shiftInputs, notes: e.target.value})}
+                          ></textarea>
+                      </div>
+                      <div className="flex justify-end gap-3">
+                          <button type="button" onClick={() => setShowCloseShiftModal(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-50 rounded-lg">Cancel</button>
+                          <button type="submit" className="px-4 py-2 bg-rose-600 text-white font-bold rounded-lg hover:bg-rose-700">Close Shift</button>
+                      </div>
+                  </form>
+              </div>
+          </div>
+      )}
+
+      {showPaymentGateway && paymentTxn && (
+          <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-8 text-center animate-in zoom-in-95 duration-200">
+                  <h3 className="text-xl font-bold text-slate-900 mb-6">Scan to Pay</h3>
+                  <div className="bg-white p-4 rounded-xl border-2 border-slate-100 inline-block mb-6 shadow-sm">
+                      <QRCodeSVG value={paymentTxn.qrCodeData} size={200} />
+                  </div>
+                  <p className="text-sm text-slate-500 mb-6">Scan this QR code with your payment app to complete the transaction.</p>
+                  <p className="font-mono text-xs text-slate-400 mb-8">{paymentTxn.transactionId}</p>
+
+                  <div className="flex flex-col gap-3">
+                      <button
+                        onClick={handlePaymentSuccess}
+                        className="w-full py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200"
+                      >
+                          Simulate Success
+                      </button>
+                      <button
+                        onClick={() => setShowPaymentGateway(false)}
+                        className="w-full py-3 text-slate-500 hover:bg-slate-50 rounded-xl font-medium transition-all"
+                      >
+                          Cancel Payment
+                      </button>
+                  </div>
+              </div>
+          </div>
       )}
 
       {showCheckout && (

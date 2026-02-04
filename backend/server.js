@@ -9,6 +9,8 @@ import adminRoutes from "./routes/admin.route.js";
 import posRoutes from "./routes/pos.routes.js";
 import dashboardRoutes from "./routes/dashboard.route.js";
 import financeRoutes from "./routes/finance.route.js";
+import shiftRoutes from "./routes/shift.routes.js";
+import paymentRoutes from "./routes/payment.routes.js";
 
 dotenv.config();
 
@@ -24,6 +26,8 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/pos", posRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/finance", financeRoutes);
+app.use("/api/shifts", shiftRoutes);
+app.use("/api/payments", paymentRoutes);
 
 
 app.listen(PORT, async () => {

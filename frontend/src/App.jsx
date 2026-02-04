@@ -11,6 +11,7 @@ import InventoryDashboard from './pages/inventory/InventoryDashboard';
 import POSPage from './pages/pos/POSPage';
 import SalesHistory from './pages/pos/SalesHistory';
 import UserManagement from './pages/admin/UserManagement';
+import FinancePage from './pages/dashboard/FinancePage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 import Navbar from './components/Navbar';
@@ -58,7 +59,7 @@ function App() {
               </Route>
 
               <Route element={<ProtectedRoute requiredModule="FINANCE" />}>
-                <Route path="/finance" element={<ModulePage name="Finance Module" endpoint="/api/auth/finance" />} />
+                <Route path="/finance" element={<FinancePage />} />
               </Route>
 
               <Route element={<ProtectedRoute requiredModule="REPORTING" />}>

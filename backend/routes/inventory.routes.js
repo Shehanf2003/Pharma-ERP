@@ -18,7 +18,10 @@ import {
     createSupplier,
     getSuppliers,
     updateSupplier,
-    deleteSupplier
+    deleteSupplier,
+    getPayables,
+    recordPayment,
+    getSupplierPayments
 } from '../controllers/supplier.controller.js';
 import {
     createPO,
@@ -45,6 +48,11 @@ router.post('/suppliers', protectRoute, adminRoute, createSupplier);
 router.get('/suppliers', protectRoute, getSuppliers);
 router.put('/suppliers/:id', protectRoute, adminRoute, updateSupplier);
 router.delete('/suppliers/:id', protectRoute, adminRoute, deleteSupplier);
+
+// Supplier Payments (Accounts Payable)
+router.get('/payables', protectRoute, getPayables);
+router.post('/payments', protectRoute, recordPayment);
+router.get('/payments', protectRoute, getSupplierPayments);
 
 // Purchase Orders
 router.post('/purchase-orders', protectRoute, adminRoute, createPO);

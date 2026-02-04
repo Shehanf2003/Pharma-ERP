@@ -47,6 +47,16 @@ const purchaseOrderSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  paidAmount: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  paymentStatus: {
+    type: String,
+    enum: ['UNPAID', 'PARTIAL', 'PAID'],
+    default: 'UNPAID'
+  },
   notes: String,
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
