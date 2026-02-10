@@ -1,0 +1,51 @@
+_id,name,genericName,category,manufacturer,storageCondition,barcode,taxRate,minStockLevel,isDeleted
+dfdd772e3807e40a2a79cf0f,Panadol 500mg,Paracetamol,Analgesic,GSK,Room Temp,890665595850,0,20,false
+bc5d8acde08251c8952b5bee,Amoxil 500mg,Amoxicillin,Antibiotic,GSK,Room Temp,890869474627,0,20,false
+3172d058628bf662d0641c2e,Metformin 500mg,Metformin Hydrochloride,Antidiabetic,SPC,Room Temp,890784771008,0,20,false
+350054cac45e5ae7b69aec04,Lipitor 10mg,Atorvastatin,Statin,Pfizer,Room Temp,890325106993,0,20,false
+b0d1cd9d707b5af19cb60063,Cozaar 50mg,Losartan Potassium,Antihypertensive,MSD,Room Temp,890426993272,0,20,false
+b1231e732af7ca155691bbb3,Omez 20mg,Omeprazole,Proton Pump Inhibitor,Dr. Reddy's,Room Temp,890217704856,0,20,false
+8c56c3c61a39685b9ef06c10,Zyrtec 10mg,Cetirizine,Antihistamine,GSK,Room Temp,890634744542,0,20,false
+f322a3a4c783019c5537b1ee,Brufen 400mg,Ibuprofen,NSAID,Abbott,Room Temp,890402758504,0,20,false
+ce391e69d2542d345996de91,Ecotrin 81mg,Aspirin,Antiplatelet,GSK,Room Temp,890501904703,0,20,false
+6cc291406970c9cec14f1c23,Plavix 75mg,Clopidogrel,Antiplatelet,Sanofi,Room Temp,890633371030,0,20,false
+40195178dfb430c5b44a7e6a,Singulair 10mg,Montelukast,Bronchodilator,MSD,Room Temp,890497595511,0,20,false
+1e09581578adf6bdeb94eb77,Ventolin Inhaler,Salbutamol,Bronchodilator,GSK,Room Temp,890773683701,0,20,false
+82b588bca468babb2768aeab,Panafcort 5mg,Prednisolone,Corticosteroid,Aspen,Room Temp,890888551962,0,20,false
+a5aea1d2fcc913298e5c52c9,Zithromax 500mg,Azithromycin,Antibiotic,Pfizer,Room Temp,890290863496,0,20,false
+7c073bfaf5706bbb95e4d430,Ciprobay 500mg,Ciprofloxacin,Antibiotic,Bayer,Room Temp,890725066665,0,20,false
+3fdbbe053491e0287ba3453d,Vibramycin 100mg,Doxycycline,Antibiotic,Pfizer,Room Temp,890285328784,0,20,false
+78ca2a629b67bf68c56178a5,Eltroxin 100mcg,Levothyroxine,Thyroid Hormone,Aspen,Room Temp,890801621678,0,20,false
+0b1774a50351c54532cd7117,Lasix 40mg,Furosemide,Diuretic,Sanofi,Room Temp,890126927688,0,20,false
+046b2a17349c4ed0e71ab47e,Zocor 20mg,Simvastatin,Statin,MSD,Room Temp,890448718877,0,20,false
+971ee2fe9dde8e7b4668ebf1,Renitec 5mg,Enalapril,Antihypertensive,MSD,Room Temp,890377986080,0,20,false
+23fff3753ae81ad1a904efa6,Concor 5mg,Bisoprolol,Beta Blocker,Merck,Room Temp,890118639348,0,20,false
+3add7aa6255c2eab4709b169,Dilatrend 6.25mg,Carvedilol,Beta Blocker,Roche,Room Temp,890373100254,0,20,false
+efa172e8efce41614eff5f1c,Diamicron 60mg,Gliclazide,Antidiabetic,Servier,Room Temp,890264378482,0,20,false
+9597f195fe9470313e8f380c,Januvia 100mg,Sitagliptin,Antidiabetic,MSD,Room Temp,890908625925,0,20,false
+199c0805ce11886585b4af5a,Pantocid 40mg,Pantoprazole,Proton Pump Inhibitor,Sun Pharma,Room Temp,890743165913,0,20,false
+85228637ddf9200979819e3c,Nexium 40mg,Esomeprazole,Proton Pump Inhibitor,AstraZeneca,Room Temp,890292449643,0,20,false
+aaca8fc703b594654250c947,Pariet 20mg,Rabeprazole,Proton Pump Inhibitor,Janssen,Room Temp,890120814768,0,20,false
+3be7e7f67fc0680975e18b04,Motilium 10mg,Domperidone,Antiemetic,Janssen,Room Temp,890505210665,0,20,false
+ee0beab30c8bb73e1a629812,Clarityne 10mg,Loratadine,Antihistamine,Bayer,Room Temp,890969664298,0,20,false
+96e13ea6b828636e6578fcc5,Telfast 120mg,Fexofenadine,Antihistamine,Sanofi,Room Temp,890887311157,0,20,false
+efeda5ca57ac1a5cf13ae40e,Voltaren 50mg,Diclofenac Sodium,NSAID,Novartis,Room Temp,890493964743,0,20,false
+446e6b817445b26abca1a1b6,Aceclo 100mg,Aceclofenac,NSAID,Aristo,Room Temp,890797011894,0,20,false
+e76120026776a5ce43c666b8,Naprosyn 500mg,Naproxen,NSAID,Roche,Room Temp,890272321823,0,20,false
+b2dbc54852934d0377fe3034,Neurontin 300mg,Gabapentin,Anticonvulsant,Pfizer,Room Temp,890380067804,0,20,false
+c67eef88155269b4b864dbfb,Lyrica 75mg,Pregabalin,Anticonvulsant,Pfizer,Room Temp,890950783392,0,20,false
+9994fbff0b061fcd965261bc,Tramal 50mg,Tramadol,Analgesic,Grunenthal,Room Temp,890240614301,0,20,false
+3eb562f9a356dd1f95c0b2e5,Zoloft 50mg,Sertraline,Antidepressant,Pfizer,Room Temp,890537120179,0,20,false
+1d7efaf59a4d4d5ec33baeac,Lexapro 10mg,Escitalopram,Antidepressant,Lundbeck,Room Temp,890930180638,0,20,false
+334c54051d6a41ef62d99177,Prozac 20mg,Fluoxetine,Antidepressant,Lilly,Room Temp,890780299973,0,20,false
+0d9039ea6418a628e362dba3,Tryptizol 25mg,Amitriptyline,Antidepressant,MSD,Room Temp,890408626280,0,20,false
+aa1dc71dc32c959e4001e9cf,Valium 5mg,Diazepam,Benzodiazepine,Roche,Room Temp,890619000914,0,20,false
+023e50a6b50d4c28a8a019d1,Rivotril 0.5mg,Clonazepam,Benzodiazepine,Roche,Room Temp,890291924679,0,20,false
+a42b0bf5a343277b1818fc29,Xanax 0.5mg,Alprazolam,Benzodiazepine,Pfizer,Room Temp,890447385830,0,20,false
+085e5274131972e08df79438,Stilnox 10mg,Zolpidem,Sedative,Sanofi,Room Temp,890542334097,0,20,false
+1478f67ecf1083eb9064fe79,Celin 500mg,Vitamin C,Vitamin,GSK,Room Temp,890594535800,0,20,false
+b5decbaca4947386a855bb24,D-Up 60000IU,Vitamin D3,Vitamin,Mankind,Room Temp,890871985011,0,20,false
+3bdb46aea63e0ab2cb8ac91d,Shelcal 500mg,Calcium Carbonate,Mineral Supplement,Torrent,Room Temp,890397559560,0,20,false
+c3b86cd2b2a17e592eaf725d,Fersolate 200mg,Ferrous Sulfate,Mineral Supplement,GSK,Room Temp,890694674243,0,20,false
+0f4b531cbab441350914884a,Folvite 5mg,Folic Acid,Vitamin,Wyeth,Room Temp,890261748953,0,20,false
+e90be466abd644a1c4b92fac,Zincovit,Zinc Sulfate,Mineral Supplement,Apex,Room Temp,890207508288,0,20,false
