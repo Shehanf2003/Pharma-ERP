@@ -1,6 +1,8 @@
 {
   "dependencies": {
     "bcryptjs": "^3.0.3",
+    "csv-parser": "^3.2.0",
+    "dotenv": "^17.2.4",
     "fetch-cookie": "^3.2.0",
     "mongodb-memory-server": "^11.0.1",
     "mongoose": "^9.1.5",
