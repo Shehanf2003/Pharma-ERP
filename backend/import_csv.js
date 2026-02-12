@@ -6,9 +6,9 @@ import csv from 'csv-parser';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 
 // Use Models
-import Product from './backend/models/Product.js';
-import Batch from './backend/models/Batch.js';
-import Location from './backend/models/Location.js';
+import Product from './models/Product.js';
+import Batch from './models/Batch.js';
+import Location from './models/Location.js';
 
 dotenv.config();
 
