@@ -29,8 +29,8 @@ app.use("/api/finance", financeRoutes);
 app.use("/api/shifts", shiftRoutes);
 app.use("/api/payments", paymentRoutes);
 
-
+connectDB().then(() => {
 app.listen(PORT, async () => {
   console.log("Server is running on port:" + PORT);
-  await connectDB();
+});
 });
