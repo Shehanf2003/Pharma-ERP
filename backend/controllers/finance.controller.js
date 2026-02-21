@@ -52,8 +52,8 @@ export const getFinancialStats = async (req, res) => {
 export const getReports = async (req, res) => {
   try {
     const { type, startDate, endDate } = req.query;
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    const start = startDate ? new Date(startDate) : new Date(new Date().setHours(0, 0, 0, 0));
+    const end = endDate ? new Date(endDate) : new Date();
     end.setHours(23, 59, 59, 999);
 
     if (type === 'SALES') {

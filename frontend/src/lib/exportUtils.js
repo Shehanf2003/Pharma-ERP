@@ -1,11 +1,11 @@
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 
 export const exportToPDF = (title, headers, data, fileName = 'report.pdf') => {
   const doc = new jsPDF();
   doc.text(title, 14, 20);
-  doc.autoTable({
+  autoTable(doc, {
     startY: 30,
     head: [headers],
     body: data.map(row => headers.map(header => row[header] || '')),
