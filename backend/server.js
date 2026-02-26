@@ -11,6 +11,7 @@ import dashboardRoutes from "./routes/dashboard.route.js";
 import financeRoutes from "./routes/finance.route.js";
 import shiftRoutes from "./routes/shift.routes.js";
 import paymentRoutes from "./routes/payment.routes.js";
+import prescriptionRoutes from "./routes/prescription.routes.js";
 
 dotenv.config();
 
@@ -20,6 +21,9 @@ const PORT = process.env.PORT || 5001;
 app.use(express.json());
 app.use(cookieParser());
 
+// Serve uploaded files statically
+app.use('/uploads', express.static('uploads'));
+
 app.use("/api/auth", authRoutes);
 app.use("/api/inventory", inventoryRoutes);
 app.use("/api/admin", adminRoutes);
@@ -28,6 +32,7 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/finance", financeRoutes);
 app.use("/api/shifts", shiftRoutes);
 app.use("/api/payments", paymentRoutes);
+app.use("/api/prescriptions", prescriptionRoutes);
 
 connectDB().then(() => {
 app.listen(PORT, async () => {

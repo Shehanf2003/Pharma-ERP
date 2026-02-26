@@ -1,15 +1,18 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Search, ShoppingCart, Trash2, Wifi, WifiOff,
-  History, RefreshCw, Scan, Keyboard, Plus, Minus, X
+  History, RefreshCw, Scan, Keyboard, Plus, Minus, X, Upload, Printer
 } from 'lucide-react';
 import { cacheProducts, getCachedProducts, savePendingSale, getPendingSales, removePendingSale } from '../../lib/offlineDb';
 import { Link } from 'react-router-dom';
 import axiosInstance from '../../lib/axios';
 import { getCurrentShift, startShift, endShift, initiatePayment } from '../../lib/financeApi';
 import ScannerModal from '../../components/ScannerModal';
+import PrescriptionUpload from '../../components/PrescriptionUpload';
+import LabelPrint from '../../components/LabelPrint';
 import toast from 'react-hot-toast';
-import { QRCodeSVG } from 'qrcode.react'; // Need to install this? Or just render text/image
+import { QRCodeSVG } from 'qrcode.react';
+import { useReactToPrint } from 'react-to-print';
 
 const POSPage = () => {
   const [products, setProducts] = useState([]);
@@ -20,6 +23,22 @@ const POSPage = () => {
   // UI State
   const [showCheckout, setShowCheckout] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [showPrescriptionUpload, setShowPrescriptionUpload] = useState(false);
+
+  // Printing State
+  const labelPrintRef = useRef(null);
+  const [labelItem, setLabelItem] = useState(null);
+  const handlePrintLabel = useReactToPrint({
+      content: () => labelPrintRef.current,
+      onAfterPrint: () => setLabelItem(null)
+  });
+
+  // Trigger print when labelItem is set
+  useEffect(() => {
+      if (labelItem) {
+          handlePrintLabel();
+      }
+  }, [labelItem]);
 
   // Shift Management State
   const [shift, setShift] = useState(null);
@@ -214,17 +233,33 @@ const POSPage = () => {
     toast.error(`Product not found: ${code}`);
   };
 
-  const addToCart = (product, batch) => {
+  const addToCart = (product, batch, quantity = 1, dosage = null) => {
     setCart(prev => {
+      // Create a unique key if dosage is different?
+      // For simplicity in POS, let's treat same batch as same item but update dosage if provided
+      // Or if it's prescription items, maybe we want separate lines?
+      // Let's assume merging lines is preferred unless instructed otherwise.
+      // If dosage is provided, we overwrite or keep existing?
+      // Let's merge quantity and update dosage if provided.
+
       const existing = prev.find(item => item.batchId === batch._id);
       if (existing) {
-        if (existing.quantity + 1 > batch.quantity) {
-          toast.error("Insufficient stock!");
+        const newQty = existing.quantity + quantity;
+        if (newQty > batch.quantity) {
+          toast.error(`Insufficient stock! Max available: ${batch.quantity}`);
           return prev;
         }
-        toast.success(`Added +1 ${product.name}`);
-        return prev.map(item => item.batchId === batch._id ? { ...item, quantity: item.quantity + 1 } : item);
+        toast.success(`Added +${quantity} ${product.name}`);
+        return prev.map(item => item.batchId === batch._id ? {
+            ...item,
+            quantity: newQty,
+            dosage: dosage || item.dosage // Update dosage if new one provided
+        } : item);
       } else {
+        if (quantity > batch.quantity) {
+            toast.error(`Insufficient stock! Max available: ${batch.quantity}`);
+            return prev;
+        }
         toast.success(`Added ${product.name}`);
         return [...prev, {
           productId: product._id,
@@ -232,8 +267,9 @@ const POSPage = () => {
           name: product.name,
           batchNumber: batch.batchNumber,
           price: batch.mrp,
-          quantity: 1,
-          maxQuantity: batch.quantity
+          quantity: quantity,
+          maxQuantity: batch.quantity,
+          dosage: dosage
         }];
       }
     });
@@ -283,7 +319,8 @@ const POSPage = () => {
         productId: item.productId,
         batchId: item.batchId,
         quantity: item.quantity,
-        price: item.price
+        price: item.price,
+        dosageInstructions: item.dosage
       })),
       paymentMethod,
       customerId: customer?._id,
@@ -392,6 +429,13 @@ const POSPage = () => {
                  )}
              </div>
              <button
+                onClick={() => setShowPrescriptionUpload(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 rounded-lg flex items-center gap-2 font-medium shadow-sm active:scale-95 transition-transform"
+                title="Upload Prescription"
+             >
+                <Upload size={20} />
+             </button>
+             <button
                 onClick={() => setIsScannerOpen(true)}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 rounded-lg flex items-center gap-2 font-medium shadow-sm active:scale-95 transition-transform"
              >
@@ -463,9 +507,24 @@ const POSPage = () => {
                                 <span>{item.batchNumber}</span>
                                 <span>Rs. {item.price}</span>
                             </div>
+                            {item.dosage && (
+                                <div className="mt-1 text-[10px] bg-slate-100 p-1 rounded text-slate-600 flex flex-wrap gap-1">
+                                    {item.dosage.morning && <span className="bg-black text-white px-1 rounded">M</span>}
+                                    {item.dosage.noon && <span className="bg-black text-white px-1 rounded">N</span>}
+                                    {item.dosage.night && <span className="bg-black text-white px-1 rounded">N</span>}
+                                    {item.dosage.timing && <span className="uppercase font-bold ml-1">{item.dosage.timing}</span>}
+                                </div>
+                            )}
                         </div>
 
                         <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => setLabelItem(item)}
+                                className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                title="Print Label"
+                            >
+                                <Printer size={16} />
+                            </button>
                              <div className="flex items-center border rounded-lg overflow-hidden border-slate-200">
                                  <button
                                     onClick={() => updateQuantity(item.batchId, -1)}
@@ -537,6 +596,19 @@ const POSPage = () => {
       {isScannerOpen && (
           <ScannerModal onClose={() => setIsScannerOpen(false)} onScan={handleScan} />
       )}
+
+      {showPrescriptionUpload && (
+          <PrescriptionUpload
+             onClose={() => setShowPrescriptionUpload(false)}
+             onAddToCart={addToCart}
+             products={products}
+          />
+      )}
+
+      {/* Hidden Print Component */}
+      <div className="hidden">
+          <LabelPrint ref={labelPrintRef} item={labelItem} />
+      </div>
 
       {showOpenShiftModal && (
           <div className="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-sm flex items-center justify-center p-4">

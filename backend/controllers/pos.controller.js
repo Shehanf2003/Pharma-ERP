@@ -14,7 +14,13 @@ const saleItemSchema = z.object({
   batchId: z.string(),
   quantity: z.number().int().positive(),
   price: z.number().positive(),
-  discount: z.number().default(0)
+  discount: z.number().default(0),
+  dosageInstructions: z.object({
+      morning: z.boolean().default(false),
+      noon: z.boolean().default(false),
+      night: z.boolean().default(false),
+      timing: z.string().optional()
+  }).optional()
 });
 
 const saleSchema = z.object({

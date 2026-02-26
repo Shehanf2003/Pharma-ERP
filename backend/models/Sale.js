@@ -33,6 +33,12 @@ const saleItemSchema = new mongoose.Schema({
   returnedQuantity: {
     type: Number,
     default: 0
+  },
+  dosageInstructions: {
+    morning: { type: Boolean, default: false },
+    noon: { type: Boolean, default: false },
+    night: { type: Boolean, default: false },
+    timing: { type: String, enum: ['Before Meal', 'After Meal', ''], default: '' }
   }
 });
 

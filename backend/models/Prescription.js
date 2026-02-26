@@ -3,11 +3,11 @@ import mongoose from 'mongoose';
 const prescriptionSchema = new mongoose.Schema({
   patientName: {
     type: String,
-    required: true,
+    // Made optional for initial upload
   },
   doctorName: {
     type: String,
-    required: true,
+    // Made optional for initial upload
   },
   doctorRegNo: {
     type: String,
@@ -19,6 +19,14 @@ const prescriptionSchema = new mongoose.Schema({
   },
   imageUrl: {
     type: String,
+    required: true
+  },
+  extractedData: {
+    type: mongoose.Schema.Types.Mixed, // Stores JSON from OCR
+  },
+  isApproved: {
+    type: Boolean,
+    default: false
   },
   notes: {
     type: String,
