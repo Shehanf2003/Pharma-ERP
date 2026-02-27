@@ -29,7 +29,7 @@ const POSPage = () => {
   const labelPrintRef = useRef(null);
   const [labelItem, setLabelItem] = useState(null);
   const handlePrintLabel = useReactToPrint({
-      content: () => labelPrintRef.current,
+      contentRef: labelPrintRef,
       onAfterPrint: () => setLabelItem(null)
   });
 
