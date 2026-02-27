@@ -772,6 +772,33 @@ const POSPage = () => {
                         </div>
                     </div>
 
+                    {/* Order Summary with Dosage Review */}
+                    <div className="mb-6">
+                        <label className="block text-sm font-medium text-slate-700 mb-2">Order Summary</label>
+                        <div className="bg-slate-50 border border-slate-200 rounded-lg overflow-hidden max-h-48 overflow-y-auto">
+                            {cart.map(item => (
+                                <div key={item.batchId} className="p-3 border-b border-slate-100 last:border-0 bg-white">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <div className="font-bold text-slate-800">{item.name}</div>
+                                            <div className="text-xs text-slate-500">{item.quantity} x Rs. {item.price}</div>
+                                        </div>
+                                        <div className="font-bold text-slate-700">Rs. {item.quantity * item.price}</div>
+                                    </div>
+                                    {item.dosage && (
+                                        <div className="mt-2 text-xs bg-yellow-50 text-yellow-800 p-2 rounded border border-yellow-100 flex gap-2 flex-wrap items-center">
+                                            <span className="font-bold uppercase text-[10px] tracking-wide text-yellow-600">Dosage:</span>
+                                            {item.dosage.morning && <span className="bg-white px-1.5 py-0.5 rounded border border-yellow-200">Morning</span>}
+                                            {item.dosage.noon && <span className="bg-white px-1.5 py-0.5 rounded border border-yellow-200">Noon</span>}
+                                            {item.dosage.night && <span className="bg-white px-1.5 py-0.5 rounded border border-yellow-200">Night</span>}
+                                            {item.dosage.timing && <span className="font-medium">{item.dosage.timing}</span>}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
                     {/* Summary */}
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
                         <div className="flex justify-between items-center mb-1">
