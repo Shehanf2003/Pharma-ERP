@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Search, ShoppingCart, Trash2, Wifi, WifiOff,
-  History, RefreshCw, Scan, Keyboard, Plus, Minus, X, Upload, Printer
+  History, RefreshCw, Scan, Keyboard, Plus, Minus, X, Upload, Printer, Edit3
 } from 'lucide-react';
 import { cacheProducts, getCachedProducts, savePendingSale, getPendingSales, removePendingSale } from '../../lib/offlineDb';
 import { Link } from 'react-router-dom';
@@ -10,6 +10,7 @@ import { getCurrentShift, startShift, endShift, initiatePayment } from '../../li
 import ScannerModal from '../../components/ScannerModal';
 import PrescriptionUpload from '../../components/PrescriptionUpload';
 import LabelPrint from '../../components/LabelPrint';
+import DosageModal from '../../components/DosageModal';
 import toast from 'react-hot-toast';
 import { QRCodeSVG } from 'qrcode.react';
 import { useReactToPrint } from 'react-to-print';
@@ -55,6 +56,7 @@ const POSPage = () => {
   const [customers, setCustomers] = useState([]);
   const [customerSearch, setCustomerSearch] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('Cash');
+  const [editingItem, setEditingItem] = useState(null); // For dosage modal
 
   // Pending Sales Sync Status
   const [pendingCount, setPendingCount] = useState(0);
@@ -295,6 +297,16 @@ const POSPage = () => {
     }));
   };
 
+  const updateDosage = (batchId, dosage) => {
+      setCart(prev => prev.map(item => {
+          if (item.batchId === batchId) {
+              return { ...item, dosage };
+          }
+          return item;
+      }));
+      setEditingItem(null);
+  };
+
   const totalAmount = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
   const handleCheckoutSubmit = async () => {
@@ -518,13 +530,22 @@ const POSPage = () => {
                         </div>
 
                         <div className="flex items-center gap-3">
-                            <button
-                                onClick={() => setLabelItem(item)}
-                                className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                                title="Print Label"
-                            >
-                                <Printer size={16} />
-                            </button>
+                            <div className="flex flex-col gap-1">
+                                <button
+                                    onClick={() => setEditingItem(item)}
+                                    className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
+                                    title="Edit Instructions"
+                                >
+                                    <Edit3 size={16} />
+                                </button>
+                                <button
+                                    onClick={() => setLabelItem(item)}
+                                    className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                    title="Print Label"
+                                >
+                                    <Printer size={16} />
+                                </button>
+                            </div>
                              <div className="flex items-center border rounded-lg overflow-hidden border-slate-200">
                                  <button
                                     onClick={() => updateQuantity(item.batchId, -1)}
@@ -609,6 +630,14 @@ const POSPage = () => {
       <div className="hidden">
           <LabelPrint ref={labelPrintRef} item={labelItem} />
       </div>
+
+      {editingItem && (
+          <DosageModal
+              item={editingItem}
+              onClose={() => setEditingItem(null)}
+              onSave={updateDosage}
+          />
+      )}
 
       {showOpenShiftModal && (
           <div className="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-sm flex items-center justify-center p-4">
@@ -792,7 +821,27 @@ const POSPage = () => {
                                             {item.dosage.noon && <span className="bg-white px-1.5 py-0.5 rounded border border-yellow-200">Noon</span>}
                                             {item.dosage.night && <span className="bg-white px-1.5 py-0.5 rounded border border-yellow-200">Night</span>}
                                             {item.dosage.timing && <span className="font-medium">{item.dosage.timing}</span>}
+                                            <button
+                                                onClick={() => setLabelItem(item)}
+                                                className="ml-auto text-yellow-600 hover:text-yellow-800 border border-yellow-300 px-2 py-0.5 rounded bg-white hover:bg-yellow-100 transition-colors flex items-center gap-1"
+                                                title="Print Label"
+                                            >
+                                                <Printer size={12} /> Print
+                                            </button>
                                         </div>
+                                    )}
+                                    {!item.dosage && (
+                                         <div className="mt-2 flex justify-end">
+                                            <button
+                                                onClick={() => {
+                                                    setShowCheckout(false);
+                                                    setEditingItem(item);
+                                                }}
+                                                className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+                                            >
+                                                <Edit3 size={12} /> Add Instructions
+                                            </button>
+                                         </div>
                                     )}
                                 </div>
                             ))}

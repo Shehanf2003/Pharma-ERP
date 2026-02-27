@@ -17,15 +17,19 @@ const LabelPrint = React.forwardRef(({ item }, ref) => {
                 {item.name}
             </div>
 
-            <div className="flex justify-center gap-4 text-center border-2 border-black rounded mb-2 py-1">
+            <div className="flex justify-center gap-4 text-center border-2 border-black rounded mb-1 py-1">
                  <div className={`w-6 h-6 flex items-center justify-center font-bold border border-black rounded ${dosage.morning ? 'bg-black text-white' : ''}`}>M</div>
                  <div className={`w-6 h-6 flex items-center justify-center font-bold border border-black rounded ${dosage.noon ? 'bg-black text-white' : ''}`}>N</div>
                  <div className={`w-6 h-6 flex items-center justify-center font-bold border border-black rounded ${dosage.night ? 'bg-black text-white' : ''}`}>N</div>
             </div>
 
-            <div className="flex justify-between items-end text-xs font-bold">
-                <div className="uppercase">
-                    {dosage.timing || 'As Directed'}
+            <div className="text-center font-bold text-xs uppercase mb-1 border-b border-black pb-1">
+                {dosage.timing || 'As Directed'}
+            </div>
+
+            <div className="flex justify-between items-end text-[10px] font-bold">
+                <div className="truncate max-w-[60%]">
+                    Qty: {item.quantity}
                 </div>
                 <div>
                     {new Date().toLocaleDateString()}
