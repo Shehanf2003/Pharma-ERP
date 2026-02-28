@@ -16,9 +16,10 @@ const saleItemSchema = z.object({
   price: z.number().positive(),
   discount: z.number().default(0),
   dosageInstructions: z.object({
-      morning: z.boolean().default(false),
-      noon: z.boolean().default(false),
-      night: z.boolean().default(false),
+      patientName: z.string().optional(),
+      amount: z.string().optional(),
+      unit: z.string().optional(),
+      frequency: z.string().optional(),
       timing: z.string().optional()
   }).optional()
 });

@@ -35,10 +35,11 @@ const saleItemSchema = new mongoose.Schema({
     default: 0
   },
   dosageInstructions: {
-    morning: { type: Boolean, default: false },
-    noon: { type: Boolean, default: false },
-    night: { type: Boolean, default: false },
-    timing: { type: String, enum: ['Before Meal', 'After Meal', ''], default: '' }
+    patientName: { type: String, default: '' },
+    amount: { type: String, default: '1' },
+    unit: { type: String, default: 'TABLET' },
+    frequency: { type: String, default: 'In the morning' },
+    timing: { type: String, default: 'AFTER MEALS' }
   }
 });
 

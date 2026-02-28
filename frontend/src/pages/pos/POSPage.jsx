@@ -521,10 +521,9 @@ const POSPage = () => {
                             </div>
                             {item.dosage && (
                                 <div className="mt-1 text-[10px] bg-slate-100 p-1 rounded text-slate-600 flex flex-wrap gap-1">
-                                    {item.dosage.morning && <span className="bg-black text-white px-1 rounded">M</span>}
-                                    {item.dosage.noon && <span className="bg-black text-white px-1 rounded">N</span>}
-                                    {item.dosage.night && <span className="bg-black text-white px-1 rounded">N</span>}
-                                    {item.dosage.timing && <span className="uppercase font-bold ml-1">{item.dosage.timing}</span>}
+                                    <span className="font-bold">{item.dosage.amount} {item.dosage.unit}</span>
+                                    <span>| {item.dosage.frequency}</span>
+                                    {item.dosage.timing && <span className="uppercase font-bold ml-1 text-emerald-700">| {item.dosage.timing}</span>}
                                 </div>
                             )}
                         </div>
@@ -636,6 +635,7 @@ const POSPage = () => {
               item={editingItem}
               onClose={() => setEditingItem(null)}
               onSave={updateDosage}
+              customerName={customer?.name || ''}
           />
       )}
 
@@ -817,9 +817,12 @@ const POSPage = () => {
                                     {item.dosage && (
                                         <div className="mt-2 text-xs bg-yellow-50 text-yellow-800 p-2 rounded border border-yellow-100 flex gap-2 flex-wrap items-center">
                                             <span className="font-bold uppercase text-[10px] tracking-wide text-yellow-600">Dosage:</span>
-                                            {item.dosage.morning && <span className="bg-white px-1.5 py-0.5 rounded border border-yellow-200">Morning</span>}
-                                            {item.dosage.noon && <span className="bg-white px-1.5 py-0.5 rounded border border-yellow-200">Noon</span>}
-                                            {item.dosage.night && <span className="bg-white px-1.5 py-0.5 rounded border border-yellow-200">Night</span>}
+                                            <span className="bg-white px-1.5 py-0.5 rounded border border-yellow-200">
+                                                {item.dosage.amount} {item.dosage.unit}
+                                            </span>
+                                            <span className="bg-white px-1.5 py-0.5 rounded border border-yellow-200">
+                                                {item.dosage.frequency}
+                                            </span>
                                             {item.dosage.timing && <span className="font-medium">{item.dosage.timing}</span>}
                                             <button
                                                 onClick={() => setLabelItem(item)}
