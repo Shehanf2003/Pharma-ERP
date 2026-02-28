@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { X, Save } from 'lucide-react';
 
-const DosageModal = ({ item, onClose, onSave, customerName }) => {
+const DosageModal = ({ item, onClose, onSave, globalPatientName, customerName }) => {
     // Determine initial state, prioritizing existing dosage, then generic defaults
     const [dosage, setDosage] = useState(item.dosage || {
-        patientName: customerName || '',
+        patientName: globalPatientName || customerName || '',
         amount: '1',
         unit: 'TABLET',
         frequency: 'In the morning',
@@ -78,25 +78,22 @@ const DosageModal = ({ item, onClose, onSave, customerName }) => {
                     {/* Frequency */}
                     <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Frequency</label>
-                        <div className="relative">
-                            <input
-                                type="text"
-                                list="frequency-options"
-                                className="w-full p-2.5 rounded-lg border-2 border-slate-200 bg-white outline-none focus:border-blue-500 font-medium text-slate-700"
-                                value={dosage.frequency}
-                                placeholder="e.g. In the morning"
-                                onChange={(e) => handleChange('frequency', e.target.value)}
-                            />
-                            <datalist id="frequency-options">
-                                <option value="In the morning" />
-                                <option value="At night" />
-                                <option value="Twice a day" />
-                                <option value="Three times a day" />
-                                <option value="Four times a day" />
-                                <option value="As needed" />
-                                <option value="Every 8 hours" />
-                            </datalist>
-                        </div>
+                        <select
+                            className="w-full p-2.5 rounded-lg border-2 border-slate-200 bg-white outline-none focus:border-blue-500 font-medium text-slate-700"
+                            value={dosage.frequency}
+                            onChange={(e) => handleChange('frequency', e.target.value)}
+                        >
+                            <option value="">Select Frequency</option>
+                            <option value="In the morning">In the morning</option>
+                            <option value="In the afternoon">In the afternoon</option>
+                            <option value="At night">At night</option>
+                            <option value="Morning & Night">Morning & Night</option>
+                            <option value="Morning, Afternoon & Night">Morning, Afternoon & Night</option>
+                            <option value="Twice a day">Twice a day</option>
+                            <option value="Three times a day">Three times a day</option>
+                            <option value="Four times a day">Four times a day</option>
+                            <option value="As needed">As needed</option>
+                        </select>
                     </div>
 
                     {/* Timing */}

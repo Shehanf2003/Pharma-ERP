@@ -57,6 +57,7 @@ const POSPage = () => {
   const [customerSearch, setCustomerSearch] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [editingItem, setEditingItem] = useState(null); // For dosage modal
+  const [globalPatientName, setGlobalPatientName] = useState(''); // Shared across current bill
 
   // Pending Sales Sync Status
   const [pendingCount, setPendingCount] = useState(0);
@@ -349,6 +350,7 @@ const POSPage = () => {
             setShowCheckout(false);
             setShowPaymentGateway(false); // Ensure closed
             setCustomer(null);
+            setGlobalPatientName(''); // Reset patient name for next bill
             loadProducts();
         } else {
              throw new Error("Offline");
@@ -361,6 +363,7 @@ const POSPage = () => {
              setCart([]);
              setShowCheckout(false);
              setCustomer(null);
+             setGlobalPatientName(''); // Reset patient name for next bill
              updatePendingCount();
         } else {
              toast.error(e.response?.data?.message || "Sale failed");
@@ -634,7 +637,13 @@ const POSPage = () => {
           <DosageModal
               item={editingItem}
               onClose={() => setEditingItem(null)}
-              onSave={updateDosage}
+              onSave={(batchId, dosage) => {
+                  if (dosage.patientName && dosage.patientName !== globalPatientName) {
+                      setGlobalPatientName(dosage.patientName);
+                  }
+                  updateDosage(batchId, dosage);
+              }}
+              globalPatientName={globalPatientName}
               customerName={customer?.name || ''}
           />
       )}
