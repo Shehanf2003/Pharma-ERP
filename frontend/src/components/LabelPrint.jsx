@@ -76,7 +76,7 @@ const LabelPrint = React.forwardRef(({ item, billNumber = 'OP00000000-DRIVE THR'
             {/* Footer */}
             <div className="flex justify-between items-center h-8">
                 <div className="text-[11px] uppercase tracking-wide">
-                    NAWALOKA HOSPITALS PLC
+                    PHARMA PLC LTD
                 </div>
                 <div className="h-full flex items-center pt-2">
                     {/* Simulated barcode using generic library if needed, or CSS representation */}
