@@ -682,7 +682,7 @@ const POSPage = () => {
                             type="number"
                             required
                             min="0"
-                            className="w-full border-slate-300 rounded-lg"
+                            className="w-full bg-slate-50 border-slate-400 rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
                             value={shiftInputs.closingBalance}
                             onChange={e => setShiftInputs({...shiftInputs, closingBalance: e.target.value})}
                           />
@@ -690,7 +690,7 @@ const POSPage = () => {
                       <div className="mb-6">
                           <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
                           <textarea
-                            className="w-full border-slate-300 rounded-lg"
+                            className="w-full bg-slate-50 border-slate-400 rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
                             rows="3"
                             value={shiftInputs.notes}
                             onChange={e => setShiftInputs({...shiftInputs, notes: e.target.value})}
