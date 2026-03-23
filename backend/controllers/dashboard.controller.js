@@ -64,13 +64,14 @@ export const getDashboardStats = async (req, res) => {
     const totalExpenses = expenseMonth[0]?.total || 0;
     const netProfit = totalRevenue - totalExpenses;
 
-    // 4. Chart Data: Last 7 Days Sales
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
-    sevenDaysAgo.setHours(0,0,0,0);
+    // 4. Chart Data: Dynamic Date Range (defaults to 7 days)
+    const daysToFetch = req.query.days ? parseInt(req.query.days, 10) : 7;
+    const pastDate = new Date();
+    pastDate.setDate(pastDate.getDate() - (daysToFetch - 1));
+    pastDate.setHours(0,0,0,0);
 
     const salesTrend = await Sale.aggregate([
-      { $match: { createdAt: { $gte: sevenDaysAgo } } },
+      { $match: { createdAt: { $gte: pastDate } } },
       {
         $group: {
           _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
@@ -82,8 +83,8 @@ export const getDashboardStats = async (req, res) => {
 
     // Fill in missing days
     const chartData = [];
-    for (let i = 0; i < 7; i++) {
-        const d = new Date(sevenDaysAgo);
+    for (let i = 0; i < daysToFetch; i++) {
+        const d = new Date(pastDate);
         d.setDate(d.getDate() + i);
         const dateStr = d.toISOString().split('T')[0];
         const found = salesTrend.find(s => s._id === dateStr);

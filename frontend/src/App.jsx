@@ -12,6 +12,7 @@ import POSPage from './pages/pos/POSPage';
 import SalesHistory from './pages/pos/SalesHistory';
 import UserManagement from './pages/admin/UserManagement';
 import FinancePage from './pages/dashboard/FinancePage';
+import Reports from './pages/Reports';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 import Navbar from './components/Navbar';
@@ -63,7 +64,7 @@ function App() {
               </Route>
 
               <Route element={<ProtectedRoute requiredModule="REPORTING" />}>
-                <Route path="/reporting" element={<ModulePage name="Reporting Module" endpoint="/api/auth/reporting" />} />
+                <Route path="/reporting" element={<Reports />} />
               </Route>
 
             </Route>

@@ -11,10 +11,11 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [newExpense, setNewExpense] = useState({ description: '', amount: '', category: 'Other' });
+  const [chartDays, setChartDays] = useState(7);
 
   const fetchStats = async () => {
     try {
-      const res = await axiosInstance.get('/dashboard/stats');
+      const res = await axiosInstance.get(`/dashboard/stats?days=${chartDays}`);
       setStats(res.data);
     } catch (error) {
       console.error("Error fetching dashboard stats", error);
@@ -25,7 +26,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchStats();
-  }, []);
+  }, [chartDays]);
 
   const handleAddExpense = async (e) => {
     e.preventDefault();
@@ -117,9 +118,14 @@ const Dashboard = () => {
             <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
                 <div className="flex items-center justify-between mb-6">
                     <h3 className="text-lg font-bold text-gray-900">Sales Trend</h3>
-                    <select className="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2">
-                        <option>Last 7 Days</option>
-                        <option>This Month</option>
+                    <select 
+                        value={chartDays}
+                        onChange={(e) => setChartDays(Number(e.target.value))}
+                        className="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2"
+                    >
+                        <option value={7}>Last 7 Days</option>
+                        <option value={14}>Last 14 Days</option>
+                        <option value={30}>Last 30 Days</option>
                     </select>
                 </div>
                 <RevenueChart data={stats?.chartData || []} />

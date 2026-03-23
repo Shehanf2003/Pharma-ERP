@@ -17,8 +17,8 @@ const getRandomDate = (start, end) => new Date(start.getTime() + Math.random() *
 const generateObjectId = () => new mongoose.Types.ObjectId().toString();
 
 // Data Generators
-const firstNames = ['John', 'Jane', 'Michael', 'Sarah', 'David', 'Emily', 'James', 'Emma', 'Robert', 'Olivia'];
-const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez'];
+const firstNames = ['Kasun', 'Nuwan', 'Amila', 'Kamal', 'Nimal', 'Nadeesha', 'Thilini', 'Sanduni', 'Gayani', 'Nishan', 'Dilini', 'Saman'];
+const lastNames = ['Perera', 'Fernando', 'De Silva', 'Gunawardena', 'Rajapaksha', 'Rathnayake', 'Dissanayake', 'Bandara', 'Senanayake', 'Peiris'];
 const domains = ['gmail.com', 'yahoo.com', 'outlook.com', 'example.com'];
 
 const generateCustomer = () => {
@@ -105,17 +105,51 @@ async function main() {
   }
   writeCSV(CUSTOMERS_CSV, customers);
 
-  console.log('Generating sales history (last 90 days)...');
+  console.log('Generating sales history (last 365 days with seasonality and Pareto principle)...');
   const sales = [];
   const endDate = new Date();
   const startDate = new Date();
-  startDate.setDate(endDate.getDate() - 90);
+  startDate.setDate(endDate.getDate() - 365);
+
+  // Build product lookup map to check names for seasonal spikes
+  const productsMap = new Map(products.map(p => [p._id, p]));
+
+  // 1. Assign weights (Pareto Principle: 80/20 rule)
+  const weightedBatches = batches.map((b, index) => {
+    let weight = 0.05; // Slow moving
+    const percentile = index / batches.length;
+    if (percentile < 0.2) weight = 0.70; // Top 20% get 70% of sales volume
+    else if (percentile < 0.5) weight = 0.25; // Next 30% get 25% of sales volume
+    return { ...b, weight };
+  });
+
+  const totalBatchWeight = weightedBatches.reduce((sum, b) => sum + b.weight, 0);
+
+  function getRandomBatchWithWeight() {
+      const random = Math.random() * totalBatchWeight;
+      let cumulativeWeight = 0;
+      for (const batch of weightedBatches) {
+          cumulativeWeight += batch.weight;
+          if (random <= cumulativeWeight) return batch;
+      }
+      return weightedBatches[weightedBatches.length - 1];
+  }
 
   let currentDate = new Date(startDate);
   let receiptSequence = 1000;
 
   while (currentDate <= endDate) {
-    const dailySalesCount = getRandomInt(15, 25);
+    const month = currentDate.getMonth();
+    const dayOfWeek = currentDate.getDay();
+
+    // 2. Inject Monthly Seasonality (Flu season vs Normal)
+    let baseVolume = 30;
+    if ([10, 11, 0].includes(month)) baseVolume += 40; // Nov, Dec, Jan spike
+    if ([3, 4].includes(month)) baseVolume += 20;      // Apr, May spring allergy spike
+    if (dayOfWeek === 0) baseVolume = Math.floor(baseVolume * 0.5); // Slower Sundays
+
+    const noise = Math.floor(Math.random() * (baseVolume * 0.3)) - (baseVolume * 0.15);
+    const dailySalesCount = Math.max(1, Math.floor(baseVolume + noise));
 
     for (let i = 0; i < dailySalesCount; i++) {
       // Create a specific time for this sale within business hours (8 AM - 8 PM)
@@ -130,8 +164,21 @@ async function main() {
       let totalAmount = 0;
 
       for (let j = 0; j < numItems; j++) {
-        const batch = getRandomElement(batches);
-        const qty = getRandomInt(1, 3);
+        // 3. Use Weighted Selection instead of uniform random
+        const batch = getRandomBatchWithWeight();
+
+        const productInfo = productsMap.get(batch.productId);
+        const productName = productInfo ? (productInfo.name || '').toLowerCase() : '';
+
+        // 4. Product-Specific Seasonal Quantities
+        let minQty = 1;
+        let maxQty = 3;
+        if ((productName.includes('cough') || productName.includes('vitamin') || productName.includes('paracetamol')) && [10, 11, 0].includes(month)) {
+            minQty = 3;
+            maxQty = 6;
+        }
+
+        const qty = getRandomInt(minQty, maxQty);
         const price = parseFloat(batch.mrp);
         const cost = parseFloat(batch.costPrice);
 

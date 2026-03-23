@@ -13,9 +13,9 @@ import Customer from './models/Customer.js';
 import Sale from './models/Sale.js';
 import User from './models/User.js';
 
-// Load env from parent directory (root) or current
-dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
-// Fallback to local .env if root one fails or doesn't exist, though usually we want the root one.
+// Load env from current backend directory
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+// Fallback
 if (!process.env.MONGO_URI) {
     dotenv.config(); 
 }
@@ -127,6 +127,11 @@ async function importData() {
   console.log(`Found ${products.length} products, ${batches.length} batches, ${customers.length} customers, and ${sales.length} sales to import.`);
 
   try {
+    // --- Clear Old Generated Data ---
+    console.log('Clearing old Customers and Sales to make room for new 365-day dataset...');
+    await Customer.deleteMany({});
+    await Sale.deleteMany({});
+
     // --- Products ---
     const existingProductIds = new Set((await Product.find({}, '_id').lean()).map(p => p._id.toString()));
     const newProducts = products
@@ -200,6 +205,7 @@ async function importData() {
     // 2. Check existing sales (by receiptNumber)
     const existingReceipts = new Set((await Sale.find({}, 'receiptNumber').lean()).map(s => s.receiptNumber));
     const newSales = [];
+    const batchDeductions = new Map();
 
     for (const row of sales) {
       if (existingReceipts.has(row.receiptNumber)) continue;
@@ -211,15 +217,19 @@ async function importData() {
       while (row[`items.${i}.productId`]) {
         const batchNumber = row[`items.${i}.batchNumber`];
         const batchId = batchMap.get(batchNumber);
+        const quantity = parseInt(row[`items.${i}.quantity`]);
 
         if (batchId) {
           items.push({
             productId: row[`items.${i}.productId`],
             batchId: batchId,
-            quantity: parseInt(row[`items.${i}.quantity`]),
+            quantity: quantity,
             price: parseFloat(row[`items.${i}.price`]),
             costPrice: parseFloat(row[`items.${i}.costPrice`])
           });
+
+          // Track total quantity to deduct for each batch
+          batchDeductions.set(batchId, (batchDeductions.get(batchId) || 0) + quantity);
         } else {
             // Warn if batch missing? For generated data it should exist.
             // console.warn(`Batch ${batchNumber} not found for sale ${row.receiptNumber}`);
@@ -256,6 +266,31 @@ async function importData() {
           console.log(`Imported sales chunk ${i/chunkSize + 1} (${chunk.length} records).`);
       }
       console.log(`Imported total ${newSales.length} new sales.`);
+
+      // 3. Deduct quantities from batches based on imported sales
+      console.log('Deducting imported sales quantities from inventory batches...');
+      let updateCount = 0;
+      for (const [batchId, qtyToDeduct] of batchDeductions.entries()) {
+          const batch = await Batch.findById(batchId);
+          if (batch) {
+              if (batch.stockDistribution && batch.stockDistribution.length > 0) {
+                  let remaining = qtyToDeduct;
+                  for (const dist of batch.stockDistribution) {
+                      if (remaining <= 0) break;
+                      if (dist.quantity > 0) {
+                          const deduct = Math.min(dist.quantity, remaining);
+                          dist.quantity -= deduct;
+                          remaining -= deduct;
+                      }
+                  }
+              } else {
+                  batch.quantity = Math.max(0, batch.quantity - qtyToDeduct);
+              }
+              await batch.save();
+              updateCount++;
+          }
+      }
+      console.log(`Updated inventory stock for ${updateCount} batches.`);
     } else {
       console.log('No new sales to import.');
     }

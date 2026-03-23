@@ -21,7 +21,7 @@ const PORT = process.env.PORT || 5001;
 app.use(express.json());
 app.use(cookieParser());
 
-// Serve uploaded files statically
+
 app.use('/uploads', express.static('uploads'));
 
 app.use("/api/auth", authRoutes);
