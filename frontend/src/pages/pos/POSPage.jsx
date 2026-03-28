@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Search, ShoppingCart, Trash2, Wifi, WifiOff,
-  History, RefreshCw, Scan, Keyboard, Plus, Minus, X, Upload, Printer, Edit3
+  History, RefreshCw, Scan, Keyboard, Plus, Minus, X, Printer, Edit3
 } from 'lucide-react';
 import { cacheProducts, getCachedProducts, savePendingSale, getPendingSales, removePendingSale } from '../../lib/offlineDb';
 import { Link } from 'react-router-dom';
 import axiosInstance from '../../lib/axios';
 import { getCurrentShift, startShift, endShift, initiatePayment } from '../../lib/financeApi';
 import ScannerModal from '../../components/ScannerModal';
-import PrescriptionUpload from '../../components/PrescriptionUpload';
 import LabelPrint from '../../components/LabelPrint';
 import DosageModal from '../../components/DosageModal';
 import toast from 'react-hot-toast';
@@ -24,7 +23,6 @@ const POSPage = () => {
   // UI State
   const [showCheckout, setShowCheckout] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
-  const [showPrescriptionUpload, setShowPrescriptionUpload] = useState(false);
 
   // Printing State
   const labelPrintRef = useRef(null);
@@ -237,6 +235,22 @@ const POSPage = () => {
   };
 
   const addToCart = (product, batch, quantity = 1, dosage = null) => {
+    // Show toasts outside of setCart to prevent double rendering in Strict Mode
+    const existingInCart = cart.find(item => item.batchId === batch._id);
+    if (existingInCart) {
+        if (existingInCart.quantity + quantity > batch.quantity) {
+            toast.error(`Insufficient stock! Max available: ${batch.quantity}`);
+            return;
+        }
+        toast.success(`Added +${quantity} ${product.name}`);
+    } else {
+        if (quantity > batch.quantity) {
+            toast.error(`Insufficient stock! Max available: ${batch.quantity}`);
+            return;
+        }
+        toast.success(`Added ${product.name}`);
+    }
+
     setCart(prev => {
       // Create a unique key if dosage is different?
       // For simplicity in POS, let's treat same batch as same item but update dosage if provided
@@ -249,10 +263,8 @@ const POSPage = () => {
       if (existing) {
         const newQty = existing.quantity + quantity;
         if (newQty > batch.quantity) {
-          toast.error(`Insufficient stock! Max available: ${batch.quantity}`);
           return prev;
         }
-        toast.success(`Added +${quantity} ${product.name}`);
         return prev.map(item => item.batchId === batch._id ? {
             ...item,
             quantity: newQty,
@@ -260,10 +272,8 @@ const POSPage = () => {
         } : item);
       } else {
         if (quantity > batch.quantity) {
-            toast.error(`Insufficient stock! Max available: ${batch.quantity}`);
             return prev;
         }
-        toast.success(`Added ${product.name}`);
         return [...prev, {
           productId: product._id,
           batchId: batch._id,
@@ -444,13 +454,6 @@ const POSPage = () => {
                  )}
              </div>
              <button
-                onClick={() => setShowPrescriptionUpload(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 rounded-lg flex items-center gap-2 font-medium shadow-sm active:scale-95 transition-transform"
-                title="Upload Prescription"
-             >
-                <Upload size={20} />
-             </button>
-             <button
                 onClick={() => setIsScannerOpen(true)}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 rounded-lg flex items-center gap-2 font-medium shadow-sm active:scale-95 transition-transform"
              >
@@ -618,14 +621,6 @@ const POSPage = () => {
       {/* MODALS */}
       {isScannerOpen && (
           <ScannerModal onClose={() => setIsScannerOpen(false)} onScan={handleScan} />
-      )}
-
-      {showPrescriptionUpload && (
-          <PrescriptionUpload
-             onClose={() => setShowPrescriptionUpload(false)}
-             onAddToCart={addToCart}
-             products={products}
-          />
       )}
 
       {/* Hidden Print Component */}

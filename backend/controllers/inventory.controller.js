@@ -41,14 +41,10 @@ const initialBatchSchema = z.object({
   batchNumber: z.string().min(1, 'Batch number is required'),
   expiryDate: z.string().or(z.date()).transform((val) => new Date(val)),
   mrp: z.number().positive(),
-  costPrice: z.number().positive(),
   quantity: z.number().int().nonnegative(),
 }).refine((data) => data.expiryDate > new Date(), {
   message: "Expiry date must be in the future",
   path: ["expiryDate"],
-}).refine((data) => data.mrp > data.costPrice, {
-  message: "MRP must be greater than cost price",
-  path: ["mrp"],
 });
 
 const productSchema = z.object({
@@ -68,14 +64,10 @@ const batchSchema = z.object({
   batchNumber: z.string().min(1, 'Batch number is required'),
   expiryDate: z.string().or(z.date()).transform((val) => new Date(val)),
   mrp: z.number().positive(),
-  costPrice: z.number().positive(),
   quantity: z.number().int().nonnegative(),
 }).refine((data) => data.expiryDate > new Date(), {
   message: "Expiry date must be in the future",
   path: ["expiryDate"],
-}).refine((data) => data.mrp > data.costPrice, {
-  message: "MRP must be greater than cost price",
-  path: ["mrp"],
 });
 
 export const addProduct = async (req, res) => {
@@ -130,8 +122,7 @@ export const addProduct = async (req, res) => {
        // Ensure error.errors exists and is an array before filtering
        if (Array.isArray(error.errors)) {
           const nmraErrors = error.errors.filter(e =>
-              e.message === "Expiry date must be in the future" ||
-              e.message === "MRP must be greater than cost price"
+              e.message === "Expiry date must be in the future"
           );
           if (nmraErrors.length > 0) {
               return res.status(400).json({ message: "NMRA Compliance Violation: " + nmraErrors.map(e => e.message).join(", ") });
@@ -146,8 +137,8 @@ export const addProduct = async (req, res) => {
 export const addBatch = async (req, res) => {
   try {
     // Basic check for required fields before Zod to match specific error message requirement
-    const { batchNumber, expiryDate, mrp, costPrice } = req.body;
-    if (!batchNumber || !expiryDate || mrp === undefined || costPrice === undefined) {
+    const { batchNumber, expiryDate, mrp } = req.body;
+    if (!batchNumber || !expiryDate || mrp === undefined) {
        return res.status(400).json({ message: "NMRA Compliance Violation: Missing Batch Data" });
     }
 
@@ -187,8 +178,7 @@ export const addBatch = async (req, res) => {
     if (error instanceof z.ZodError) {
         // Check if the error is related to NMRA compliance specific checks
         const nmraErrors = error.errors.filter(e =>
-            e.message === "Expiry date must be in the future" ||
-            e.message === "MRP must be greater than cost price"
+            e.message === "Expiry date must be in the future"
         );
         if (nmraErrors.length > 0) {
              return res.status(400).json({ message: "NMRA Compliance Violation: " + nmraErrors.map(e => e.message).join(", ") });
@@ -198,6 +188,32 @@ export const addBatch = async (req, res) => {
     if (error.code === 11000) {
          return res.status(400).json({ message: "Batch number must be unique" });
     }
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const updateProductSchema = z.object({
+  name: z.string().min(1, 'Name is required').optional(),
+  genericName: z.string().optional(),
+  category: z.string().optional(),
+  manufacturer: z.string().optional(),
+  storageCondition: z.enum(['Cold Chain', 'Room Temp', 'Frozen', 'Refrigerated']).optional(),
+  minStockLevel: z.coerce.number().min(0).optional(),
+  barcode: z.string().optional(),
+  taxRate: z.coerce.number().min(0).optional(),
+});
+
+export const updateProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const validatedData = updateProductSchema.parse(req.body);
+    
+    const product = await Product.findByIdAndUpdate(id, validatedData, { new: true });
+    if (!product) return res.status(404).json({ message: "Product not found" });
+    
+    res.json(product);
+  } catch (error) {
+    if (error instanceof z.ZodError) return res.status(400).json({ errors: error.errors });
     res.status(500).json({ message: error.message });
   }
 };
@@ -256,11 +272,13 @@ export const getInventory = async (req, res) => {
             // Get the soonest expiry date
             const batches = await Batch.find({ productId: product._id }).sort({ expiryDate: 1 }).limit(1);
             const nextExpiryDate = batches.length > 0 ? batches[0].expiryDate : null;
+            const mrp = batches.length > 0 ? batches[0].mrp : 0;
 
             return {
                 ...product,
                 totalStock: totalQuantity,
-                nextExpiryDate: nextExpiryDate
+                nextExpiryDate: nextExpiryDate,
+                mrp: mrp
             };
         }));
         res.json(inventory);
@@ -317,10 +335,10 @@ export const getAllBatches = async (req, res) => {
 export const updateBatch = async (req, res) => {
   try {
     const { id } = req.params;
-    const { quantity } = req.body;
+    const { quantity, mrp } = req.body;
 
-    if (quantity === undefined || quantity < 0) {
-        return res.status(400).json({ message: "Valid quantity is required" });
+    if (quantity === undefined && mrp === undefined) {
+        return res.status(400).json({ message: "Valid quantity or mrp is required" });
     }
 
     // For legacy update, we just update the first location or "Main Warehouse"
@@ -328,46 +346,56 @@ export const updateBatch = async (req, res) => {
     const batch = await Batch.findById(id);
     if (!batch) return res.status(404).json({ message: "Batch not found" });
 
+    if (mrp !== undefined) {
+        if (mrp < 0) return res.status(400).json({ message: "Valid mrp is required" });
+        batch.mrp = mrp;
+    }
+
     // Simplistic update for compatibility: Update the first stock location
     let locationId = null;
-    if (batch.stockDistribution.length > 0) {
-        const diff = quantity - batch.stockDistribution[0].quantity;
-        batch.stockDistribution[0].quantity = quantity;
-        locationId = batch.stockDistribution[0].location;
+    if (quantity !== undefined) {
+        if (quantity < 0) return res.status(400).json({ message: "Valid quantity is required" });
+        if (batch.stockDistribution.length > 0) {
+            const diff = quantity - batch.stockDistribution[0].quantity;
+            batch.stockDistribution[0].quantity = quantity;
+            locationId = batch.stockDistribution[0].location;
 
-        await StockMovement.create({
-            product: batch.productId,
-            batch: batch._id,
-            type: 'ADJUSTMENT',
-            quantity: Math.abs(diff), // log the change
-            toLocation: batch.stockDistribution[0].location,
-            reason: 'Manual Quantity Override',
-            user: req.user?._id
-        });
+            if (diff !== 0) {
+                await StockMovement.create({
+                    product: batch.productId,
+                    batch: batch._id,
+                    type: 'ADJUSTMENT',
+                    quantity: Math.abs(diff), // log the change
+                    toLocation: batch.stockDistribution[0].location,
+                    reason: 'Manual Quantity Override',
+                    user: req.user?._id
+                });
+            }
 
-    } else {
-         // Should fallback to finding a default location
-         const warehouse = await Location.findOne({ type: 'Warehouse' }) || await Location.findOne({});
-         if (warehouse) {
-             batch.stockDistribution.push({ location: warehouse._id, quantity });
-             locationId = warehouse._id;
+        } else {
+             // Should fallback to finding a default location
+             const warehouse = await Location.findOne({ type: 'Warehouse' }) || await Location.findOne({});
+             if (warehouse) {
+                 batch.stockDistribution.push({ location: warehouse._id, quantity });
+                 locationId = warehouse._id;
 
-              await StockMovement.create({
-                product: batch.productId,
-                batch: batch._id,
-                type: 'ADJUSTMENT',
-                quantity: quantity,
-                toLocation: warehouse._id,
-                reason: 'Manual Quantity Override (New Loc)',
-                user: req.user?._id
-            });
-         }
+                  await StockMovement.create({
+                    product: batch.productId,
+                    batch: batch._id,
+                    type: 'ADJUSTMENT',
+                    quantity: quantity,
+                    toLocation: warehouse._id,
+                    reason: 'Manual Quantity Override (New Loc)',
+                    user: req.user?._id
+                });
+             }
+        }
     }
 
     await batch.save();
 
     // Check for low stock
-    if (locationId) {
+    if (locationId && quantity !== undefined) {
         await notifyIfLowStock(batch.productId, locationId);
     }
 
@@ -390,6 +418,25 @@ export const deleteBatch = async (req, res) => {
     await notifyIfLowStock(batch.productId, null); // location unknown since deleted
 
     res.json({ message: "Batch deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// NEW: Bulk Update Product Unit Price (MRP) across all batches
+export const updateProductPrice = async (req, res) => {
+  try {
+    const { id } = req.params; // Product ID
+    const { mrp } = req.body;
+
+    if (mrp === undefined || mrp < 0) {
+        return res.status(400).json({ message: "Valid mrp is required" });
+    }
+
+    // Update MRP for all batches of this product
+    await Batch.updateMany({ productId: id }, { $set: { mrp: mrp } });
+
+    res.json({ message: "Product unit price updated successfully across all batches" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

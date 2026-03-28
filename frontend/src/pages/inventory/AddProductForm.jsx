@@ -19,7 +19,6 @@ const AddProductForm = ({ onSuccess }) => {
     expiryDate: '',
     quantity: 0,
     mrp: 0,
-    costPrice: 0,
   });
 
   // Pack Calculator State
@@ -60,8 +59,7 @@ const AddProductForm = ({ onSuccess }) => {
         payload.initialBatch = {
             ...batchData,
             quantity: Number(batchData.quantity),
-            mrp: Number(batchData.mrp),
-            costPrice: Number(batchData.costPrice)
+            mrp: Number(batchData.mrp)
         };
     }
     
@@ -103,8 +101,7 @@ const AddProductForm = ({ onSuccess }) => {
         batchNumber: '',
         expiryDate: '',
         quantity: 0,
-        mrp: 0,
-        costPrice: 0,
+        mrp: 0
       });
 
       if (onSuccess) onSuccess();
@@ -334,21 +331,6 @@ const AddProductForm = ({ onSuccess }) => {
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
                   />
                 </div>
-
-                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Cost Price (Per Unit) *</label>
-                  <input
-                    type="number"
-                    name="costPrice"
-                    step="0.01"
-                    min="0"
-                    required={addInitialStock}
-                    value={batchData.costPrice}
-                    onChange={handleBatchChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
-                  />
-                </div>
-                 <div className="hidden md:block"></div>
             </>
         )}
 

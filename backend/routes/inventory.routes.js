@@ -11,7 +11,8 @@ import {
   transferStock,
   adjustStock,
   getLocations,
-  deleteProduct
+  deleteProduct,
+  updateProductPrice
 } from '../controllers/inventory.controller.js';
 import { protectRoute, adminRoute } from '../middleware/auth.middleware.js';
 import {
@@ -40,6 +41,7 @@ router.get('/alerts/expiring', protectRoute, getExpiringBatches);
 router.get('/', protectRoute, getInventory);
 router.get('/batches-list', protectRoute, getAllBatches);
 router.patch('/batches/:id', protectRoute, adminRoute, updateBatch);
+router.put('/products/:id/price', protectRoute, adminRoute, updateProductPrice);
 router.delete('/batches/:id', protectRoute, adminRoute, deleteBatch);
 
 // New Routes
