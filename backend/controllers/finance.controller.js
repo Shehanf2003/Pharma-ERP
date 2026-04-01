@@ -9,39 +9,77 @@ export const getFinancialStats = async (req, res) => {
     const start = startDate ? new Date(startDate) : new Date(new Date().setHours(0,0,0,0));
     const end = endDate ? new Date(endDate) : new Date(new Date().setHours(23,59,59,999));
 
-    const sales = await Sale.find({
-      createdAt: { $gte: start, $lte: end },
-      status: 'completed'
-    });
+    const salesSummary = await Sale.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: start, $lte: end },
+          status: 'completed'
+        }
+      },
+      {
+        $facet: {
+          totals: [
+            {
+              $group: {
+                _id: null,
+                totalRevenue: { $sum: "$totalAmount" },
+                salesCount: { $sum: 1 }
+              }
+            }
+          ],
+          items: [
+            { $unwind: "$items" },
+            {
+              $group: {
+                _id: null,
+                totalCOGS: { $sum: { $multiply: [{ $ifNull: ["$items.costPrice", 0] }, "$items.quantity"] } },
+                totalDiscounts: { $sum: { $ifNull: ["$items.discount", 0] } }
+              }
+            }
+          ]
+        }
+      }
+    ]);
 
-    const expenses = await Expense.find({
-      date: { $gte: start, $lte: end }
-    });
+    const expensesSummary = await Expense.aggregate([
+      {
+        $match: {
+          date: { $gte: start, $lte: end }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalExpenses: { $sum: "$amount" },
+          expensesCount: { $sum: 1 }
+        }
+      }
+    ]);
 
-    // Calculate Totals
-    let totalRevenue = 0;
-    let totalCOGS = 0;
-    let totalDiscounts = 0;
+    const stats = salesSummary[0];
+    const totalRevenue = stats.totals[0]?.totalRevenue || 0;
+    const salesCount = stats.totals[0]?.salesCount || 0;
+    const totalCOGS = stats.items[0]?.totalCOGS || 0;
+    const totalDiscounts = stats.items[0]?.totalDiscounts || 0;
 
-    sales.forEach(sale => {
-      totalRevenue += sale.totalAmount;
-      sale.items.forEach(item => {
-        totalCOGS += (item.costPrice || 0) * item.quantity;
-        totalDiscounts += item.discount || 0;
-      });
-    });
+    const expStats = expensesSummary[0];
+    const totalExpenses = expStats?.totalExpenses || 0;
+    const expensesCount = expStats?.expensesCount || 0;
 
-    const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
-    const netProfit = totalRevenue - totalCOGS - totalExpenses;
+    const grossProfit = totalRevenue - totalCOGS;
+    const netProfit = grossProfit - totalExpenses;
+    const grossMarginPercentage = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
 
     res.json({
       totalRevenue,
       totalCOGS,
       totalExpenses,
+      grossProfit,
       netProfit,
+      grossMarginPercentage,
       totalDiscounts,
-      salesCount: sales.length,
-      expensesCount: expenses.length
+      salesCount,
+      expensesCount
     });
 
   } catch (error) {

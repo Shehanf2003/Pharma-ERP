@@ -19,6 +19,17 @@ const batchSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  costPrice: {
+    type: Number,
+    default: 0
+  },
+  
+  supplierInvoiceId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'SupplierInvoice',
+    required: false 
+  },
+  
   quantity: {
     type: Number,
     required: true,
