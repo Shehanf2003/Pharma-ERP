@@ -81,10 +81,9 @@ export const createSale = async (req, res) => {
 
       totalAmount += (item.price * item.quantity) - item.discount;
 
-      // Snapshot cost price from batch
       processedItems.push({
         ...item,
-        costPrice: batch.costPrice
+        costPrice: batch.costPrice || 0
       });
 
       // Deduct Stock Logic

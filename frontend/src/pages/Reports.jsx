@@ -28,10 +28,10 @@ const Reports = () => {
 
             if (!response.ok) {
                 const err = await response.json();
-                throw new Error(err.message || 'Failed to fetch');
+                throw new Error(err.detail || err.message || 'Failed to fetch');
             }
             const data = await response.json();
-            setFmcgData(data);
+            setFmcgData(data.data || []);
         } catch (error) {
             console.error('Failed to fetch FMCG data:', error);
             setFmcgError(error.message);
@@ -53,7 +53,7 @@ const Reports = () => {
 
             if (!response.ok) {
                 const err = await response.json();
-                throw new Error(err.message || 'Failed to fetch');
+                throw new Error(err.detail || err.message || 'Failed to fetch');
             }
             const data = await response.json();
             setForecastData(data);

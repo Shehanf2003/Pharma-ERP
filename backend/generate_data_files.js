@@ -16,6 +16,13 @@ const getRandomDate = (start, end) => new Date(start.getTime() + Math.random() *
 
 const generateObjectId = () => new mongoose.Types.ObjectId().toString();
 
+// Regional Configuration
+const REGIONAL_DATA = {
+    "Western": { peakMonths: [5, 6, 9, 10, 11, 0], topMeds: ['paracetamol', 'ors', 'salbutamol', 'cetirizine', 'beclomethasone', 'co-amoxiclav'], multiplier: 2.0 }
+};
+const CURRENT_PROVINCE = "Western"; 
+const activeRegion = REGIONAL_DATA[CURRENT_PROVINCE];
+
 // Data Generators
 const firstNames = ['Kasun', 'Nuwan', 'Amila', 'Kamal', 'Nimal', 'Nadeesha', 'Thilini', 'Sanduni', 'Gayani', 'Nishan', 'Dilini', 'Saman'];
 const lastNames = ['Perera', 'Fernando', 'De Silva', 'Gunawardena', 'Rajapaksha', 'Rathnayake', 'Dissanayake', 'Bandara', 'Senanayake', 'Peiris'];
@@ -141,11 +148,11 @@ async function main() {
   while (currentDate <= endDate) {
     const month = currentDate.getMonth();
     const dayOfWeek = currentDate.getDay();
+    const isPeakSeason = activeRegion.peakMonths.includes(month);
 
-    // 2. Inject Monthly Seasonality (Flu season vs Normal)
+    // 2. Inject Monthly Seasonality
     let baseVolume = 30;
-    if ([10, 11, 0].includes(month)) baseVolume += 40; // Nov, Dec, Jan spike
-    if ([3, 4].includes(month)) baseVolume += 20;      // Apr, May spring allergy spike
+    if (isPeakSeason) baseVolume = Math.floor(baseVolume * activeRegion.multiplier);
     if (dayOfWeek === 0) baseVolume = Math.floor(baseVolume * 0.5); // Slower Sundays
 
     const noise = Math.floor(Math.random() * (baseVolume * 0.3)) - (baseVolume * 0.15);
@@ -173,9 +180,9 @@ async function main() {
         // 4. Product-Specific Seasonal Quantities
         let minQty = 1;
         let maxQty = 3;
-        if ((productName.includes('cough') || productName.includes('vitamin') || productName.includes('paracetamol')) && [10, 11, 0].includes(month)) {
+        if (isPeakSeason && activeRegion.topMeds.some(med => productName.includes(med))) {
             minQty = 3;
-            maxQty = 6;
+            maxQty = Math.floor(4 * activeRegion.multiplier);
         }
 
         const qty = getRandomInt(minQty, maxQty);

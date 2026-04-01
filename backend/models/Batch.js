@@ -19,10 +19,6 @@ const batchSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
-  costPrice: {
-    type: Number,
-    required: true
-  },
   quantity: {
     type: Number,
     required: true,

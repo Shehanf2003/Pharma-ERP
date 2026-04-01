@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 from sklearn.cluster import KMeans
 from sklearn.metrics import mean_absolute_error, mean_squared_error, silhouette_score
-from statsmodels.tsa.holtwinters import ExponentialSmoothing
+from prophet import Prophet
 import os
 import datetime
 from dotenv import load_dotenv
@@ -152,26 +152,31 @@ def demand_forecast(product_id: str, days_to_predict: int = 30):
 
     # 3. Prepare Time-Series Data
     df = pd.DataFrame(sales)
-    df['date'] = pd.to_datetime(df['date'])
+    df['ds'] = pd.to_datetime(df['date'])
+    df.rename(columns={'quantity': 'y'}, inplace=True)
     
     # Group by day and sum quantities (fill missing days with 0)
-    daily_sales = df.groupby('date')['quantity'].sum().reset_index()
-    daily_sales.set_index('date', inplace=True)
-    daily_sales = daily_sales.asfreq('D', fill_value=0)
+    daily_sales = df.groupby('ds')['y'].sum().reset_index()
+    daily_sales.set_index('ds', inplace=True)
+    daily_sales = daily_sales.asfreq('D', fill_value=0).reset_index()
 
-    # 4. Apply Holt-Winters Exponential Smoothing Model
-    # This model is great for finding trends and weekly seasonality
-    model = ExponentialSmoothing(daily_sales['quantity'], trend='add', seasonal='add', seasonal_periods=7, initialization_method="estimated")
-    fit_model = model.fit()
+    # 4. Apply Meta's Prophet Model
+    # Prophet is excellent for business time series, robust to missing data and shifts
+    model = Prophet(yearly_seasonality='auto', weekly_seasonality=True, daily_seasonality=False)
+    
+    # ADD THIS LINE: Tell Prophet to look out for Sri Lankan holidays!
+    model.add_country_holidays(country_name='LK') 
+    model.fit(daily_sales)
 
     # 5. Forecast future days
-    forecast = fit_model.forecast(days_to_predict)
+    future = model.make_future_dataframe(periods=days_to_predict)
+    forecast = model.predict(future)
     
     # 6. Format Output
     predictions = []
-    for date, value in forecast.items():
-        # We can't sell negative items, so floor at 0
-        predictions.append({"date": date.strftime("%Y-%m-%d"), "predictedQuantity": max(0, round(value, 2))})
+    future_forecast = forecast.tail(days_to_predict)
+    for _, row in future_forecast.iterrows():
+        predictions.append({"date": row['ds'].strftime("%Y-%m-%d"), "predictedQuantity": max(0, round(row['yhat'], 2))})
 
     return {"productId": product_id, "forecast": predictions}
 
@@ -215,11 +220,12 @@ def evaluate_forecast(product_id: str, test_days: int = 10):
 
     # 3. Prepare Time-Series Data
     df = pd.DataFrame(sales)
-    df['date'] = pd.to_datetime(df['date'])
+    df['ds'] = pd.to_datetime(df['date'])
+    df.rename(columns={'quantity': 'y'}, inplace=True)
     
-    daily_sales = df.groupby('date')['quantity'].sum().reset_index()
-    daily_sales.set_index('date', inplace=True)
-    daily_sales = daily_sales.asfreq('D', fill_value=0)
+    daily_sales = df.groupby('ds')['y'].sum().reset_index()
+    daily_sales.set_index('ds', inplace=True)
+    daily_sales = daily_sales.asfreq('D', fill_value=0).reset_index()
 
     # 4. Split Data into Train and Test
     train = daily_sales.iloc[:-test_days]
@@ -227,21 +233,23 @@ def evaluate_forecast(product_id: str, test_days: int = 10):
 
     # 5. Train Model on Training Data
     try:
-        model = ExponentialSmoothing(train['quantity'], trend='add', seasonal='add', seasonal_periods=7, initialization_method="estimated")
-        fit_model = model.fit()
+        model = Prophet(yearly_seasonality='auto', weekly_seasonality=True, daily_seasonality=False)
+        model.add_country_holidays(country_name='LK')
+        model.fit(train)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Model training failed: {str(e)}")
 
     # 6. Predict the Test Period
-    predictions = fit_model.forecast(test_days)
-    predictions = predictions.apply(lambda x: max(0, x))
+    future = model.make_future_dataframe(periods=test_days)
+    forecast = model.predict(future)
+    predictions = forecast['yhat'].tail(test_days).apply(lambda x: max(0, x)).values
 
     # 7. Calculate Metrics
-    mae = mean_absolute_error(actual_test['quantity'], predictions)
-    rmse = np.sqrt(mean_squared_error(actual_test['quantity'], predictions))
+    mae = mean_absolute_error(actual_test['y'], predictions)
+    rmse = np.sqrt(mean_squared_error(actual_test['y'], predictions))
     
     comparison = []
-    for date, actual, predicted in zip(actual_test.index, actual_test['quantity'], predictions):
+    for date, actual, predicted in zip(actual_test['ds'], actual_test['y'], predictions):
         comparison.append({
             "date": date.strftime("%Y-%m-%d"),
             "actualQuantity": actual,

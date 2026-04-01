@@ -35,13 +35,15 @@ const RevenueChart = ({ data }) => {
             tickFormatter={(value) => `Rs.${value/1000}k`}
           />
           <Tooltip
+            cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '3 3' }}
             contentStyle={{
                 backgroundColor: '#fff',
-                borderRadius: '8px',
+                borderRadius: '0.5rem',
                 border: 'none',
-                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
             }}
-            formatter={(value) => [`Rs. ${value.toLocaleString()}`, 'Sales']}
+            labelStyle={{ fontWeight: 'bold', color: '#1f2937', marginBottom: '4px' }}
+            formatter={(value) => [`Rs. ${value.toLocaleString()}`, 'Total Sales']}
           />
           <Area
             type="monotone"

@@ -9,19 +9,16 @@ export const getDashboardStats = async (req, res) => {
     today.setHours(0, 0, 0, 0);
 
     // 1. Inventory: Low Stock Items
-    // Correct logic: Find products where minStockLevel is set, and compare with total quantity.
-    // However, since we don't have easy aggregate on-the-fly without lookup,
-    // we will count batches with very low quantity as a proxy for "Items needing attention"
-    // OR, better: Count products where minStockLevel > 0 (meaning it's tracked)
-    // AND try to check stock.
-    // Given the previous review feedback, I will implement a slightly better check:
-    // Count batches with quantity < 10.
-
-    // Let's refine the "Active Products" metric to be "Low Stock Batches" which is more actionable.
-    const lowStockThreshold = 10;
-    const lowStockCount = await Batch.countDocuments({
-        quantity: { $lt: lowStockThreshold, $gt: 0 }
-    });
+    const products = await Product.find({ isDeleted: { $ne: true } });
+    let lowStockCount = 0;
+    for (const product of products) {
+        if (product.minStockLevel !== undefined) {
+            const totalStock = await Batch.checkLowStock(product._id);
+            if (totalStock <= product.minStockLevel) {
+                lowStockCount++;
+            }
+        }
+    }
 
     const expiringBatches = await Batch.countDocuments({
         expiryDate: { $lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) }, // Expiring in 7 days
@@ -50,9 +47,19 @@ export const getDashboardStats = async (req, res) => {
     // 3. Finance: Revenue vs Expenses (This Month)
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
-    const revenueMonth = await Sale.aggregate([
+    const salesMonth = await Sale.aggregate([
       { $match: { createdAt: { $gte: startOfMonth } } },
-      { $group: { _id: null, total: { $sum: "$totalAmount" } } }
+      {
+        $facet: {
+          revenue: [
+            { $group: { _id: null, total: { $sum: "$totalAmount" } } }
+          ],
+          cogs: [
+            { $unwind: "$items" },
+            { $group: { _id: null, total: { $sum: { $multiply: [{ $ifNull: ["$items.costPrice", 0] }, "$items.quantity"] } } } }
+          ]
+        }
+      }
     ]);
 
     const expenseMonth = await Expense.aggregate([
@@ -60,18 +67,35 @@ export const getDashboardStats = async (req, res) => {
       { $group: { _id: null, total: { $sum: "$amount" } } }
     ]);
 
-    const totalRevenue = revenueMonth[0]?.total || 0;
+    const totalRevenue = salesMonth[0]?.revenue[0]?.total || 0;
+    const totalCOGS = salesMonth[0]?.cogs[0]?.total || 0;
     const totalExpenses = expenseMonth[0]?.total || 0;
-    const netProfit = totalRevenue - totalExpenses;
+    const netProfit = totalRevenue - totalCOGS - totalExpenses;
 
-    // 4. Chart Data: Dynamic Date Range (defaults to 7 days)
-    const daysToFetch = req.query.days ? parseInt(req.query.days, 10) : 7;
-    const pastDate = new Date();
-    pastDate.setDate(pastDate.getDate() - (daysToFetch - 1));
-    pastDate.setHours(0,0,0,0);
+    // 4. Chart Data: Dynamic Date Range
+    let daysToFetch = 7;
+    let pastDate = new Date();
+    let endDate = new Date();
+
+    if (req.query.startDate && req.query.endDate) {
+        pastDate = new Date(req.query.startDate);
+        endDate = new Date(req.query.endDate);
+        const diffTime = Math.abs(endDate.getTime() - pastDate.getTime());
+        daysToFetch = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    } else if (req.query.days) {
+        daysToFetch = parseInt(req.query.days, 10);
+        pastDate.setDate(pastDate.getDate() - (daysToFetch - 1));
+    } else {
+        pastDate.setDate(pastDate.getDate() - 6);
+    }
+    
+    pastDate.setHours(0, 0, 0, 0);
+    endDate.setHours(23, 59, 59, 999);
+
+    if (daysToFetch > 365) daysToFetch = 365; // Safeguard
 
     const salesTrend = await Sale.aggregate([
-      { $match: { createdAt: { $gte: pastDate } } },
+      { $match: { createdAt: { $gte: pastDate, $lte: endDate } } },
       {
         $group: {
           _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
@@ -88,8 +112,16 @@ export const getDashboardStats = async (req, res) => {
         d.setDate(d.getDate() + i);
         const dateStr = d.toISOString().split('T')[0];
         const found = salesTrend.find(s => s._id === dateStr);
+        
+        let labelFormat;
+        if (daysToFetch <= 14) {
+            labelFormat = { weekday: 'short' };
+        } else {
+            labelFormat = { month: 'short', day: 'numeric' };
+        }
+        
         chartData.push({
-            name: new Date(dateStr).toLocaleDateString('en-US', { weekday: 'short' }),
+            name: new Date(dateStr).toLocaleDateString('en-US', labelFormat),
             sales: found ? found.sales : 0
         });
     }

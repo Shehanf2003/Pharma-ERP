@@ -3,7 +3,7 @@ import Sidebar from './dashboard/Sidebar';
 import StatCard from './dashboard/StatCard';
 import RevenueChart from './dashboard/RevenueChart';
 import axiosInstance from '../lib/axios';
-import { Package, ShoppingCart, TrendingUp, AlertCircle, Plus, DollarSign } from 'lucide-react';
+import { Package, ShoppingCart, TrendingUp, AlertCircle, Plus, DollarSign, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const Dashboard = () => {
@@ -11,11 +11,19 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [newExpense, setNewExpense] = useState({ description: '', amount: '', category: 'Other' });
-  const [chartDays, setChartDays] = useState(7);
+  const [dateRange, setDateRange] = useState(() => {
+      const end = new Date();
+      const start = new Date();
+      start.setDate(start.getDate() - 6);
+      return {
+          start: start.toISOString().split('T')[0],
+          end: end.toISOString().split('T')[0]
+      };
+  });
 
   const fetchStats = async () => {
     try {
-      const res = await axiosInstance.get(`/dashboard/stats?days=${chartDays}`);
+      const res = await axiosInstance.get(`/dashboard/stats?startDate=${dateRange.start}&endDate=${dateRange.end}`);
       setStats(res.data);
     } catch (error) {
       console.error("Error fetching dashboard stats", error);
@@ -25,8 +33,17 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
-    fetchStats();
-  }, [chartDays]);
+    if (dateRange.start && dateRange.end && new Date(dateRange.start) <= new Date(dateRange.end)) {
+        fetchStats();
+
+        // Auto-update dashboard stats without full page reload
+        const interval = setInterval(() => {
+            fetchStats();
+        }, 30000); // 30 seconds
+        
+        return () => clearInterval(interval);
+    }
+  }, [dateRange.start, dateRange.end]);
 
   const handleAddExpense = async (e) => {
     e.preventDefault();
@@ -63,6 +80,13 @@ const Dashboard = () => {
                 <p className="text-gray-500 mt-1">Real-time insights and performance metrics.</p>
             </div>
             <div className="flex gap-3">
+                 <button
+                   onClick={() => fetchStats()}
+                   className="flex items-center px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 shadow-sm transition-colors text-sm font-medium"
+                 >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Refresh
+                 </button>
                  <button
                    onClick={() => setShowExpenseModal(true)}
                    className="flex items-center px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 shadow-sm transition-colors text-sm font-medium"
@@ -118,15 +142,22 @@ const Dashboard = () => {
             <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
                 <div className="flex items-center justify-between mb-6">
                     <h3 className="text-lg font-bold text-gray-900">Sales Trend</h3>
-                    <select 
-                        value={chartDays}
-                        onChange={(e) => setChartDays(Number(e.target.value))}
-                        className="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2"
-                    >
-                        <option value={7}>Last 7 Days</option>
-                        <option value={14}>Last 14 Days</option>
-                        <option value={30}>Last 30 Days</option>
-                    </select>
+                    <div className="flex items-center gap-2">
+                        <input 
+                            type="date"
+                            value={dateRange.start}
+                            onChange={(e) => setDateRange({...dateRange, start: e.target.value})}
+                            className="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2 outline-none transition-colors"
+                        />
+                        <span className="text-gray-500 text-sm font-medium">to</span>
+                        <input 
+                            type="date"
+                            value={dateRange.end}
+                            min={dateRange.start}
+                            onChange={(e) => setDateRange({...dateRange, end: e.target.value})}
+                            className="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2 outline-none transition-colors"
+                        />
+                    </div>
                 </div>
                 <RevenueChart data={stats?.chartData || []} />
             </div>

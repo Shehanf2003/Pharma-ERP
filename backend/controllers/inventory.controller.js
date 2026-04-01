@@ -41,6 +41,8 @@ const initialBatchSchema = z.object({
   batchNumber: z.string().min(1, 'Batch number is required'),
   expiryDate: z.string().or(z.date()).transform((val) => new Date(val)),
   mrp: z.number().positive(),
+  costPrice: z.number().min(0).optional(),
+  costPrice: z.number().min(0).optional(),
   quantity: z.number().int().nonnegative(),
 }).refine((data) => data.expiryDate > new Date(), {
   message: "Expiry date must be in the future",
