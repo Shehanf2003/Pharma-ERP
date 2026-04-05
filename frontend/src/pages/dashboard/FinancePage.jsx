@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import Sidebar from './Sidebar';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   DollarSign, TrendingUp, CreditCard, FileText, Plus, Download, Filter
 } from 'lucide-react';
@@ -8,7 +7,9 @@ import {
 } from '../../lib/financeApi';
 import { exportToPDF, exportToExcel } from '../../lib/exportUtils';
 import toast from 'react-hot-toast';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { socket } from '../../lib/socket';
+import ProfitOptimizer from '../../../../ml_service/ProfitOptimizer';
 
 const FinancePage = () => {
   const [activeTab, setActiveTab] = useState('OVERVIEW');
@@ -29,11 +30,7 @@ const FinancePage = () => {
   // Reports
   const [reportDateRange, setReportDateRange] = useState({ start: '', end: '' });
 
-  useEffect(() => {
-    loadData();
-  }, [activeTab]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       if (activeTab === 'OVERVIEW') {
@@ -52,7 +49,25 @@ const FinancePage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab]);
+
+  // Initial load
+  useEffect(() => {
+    loadData();
+  }, [activeTab, loadData]);
+
+  // Handle Socket Events separately
+  useEffect(() => {
+      // Attach listeners
+      socket.on('FINANCE_UPDATE', loadData);
+      socket.on('STATS_UPDATE', loadData);
+
+      // Cleanup listeners on unmount
+      return () => {
+          socket.off('FINANCE_UPDATE', loadData);
+          socket.off('STATS_UPDATE', loadData);
+      };
+  }, [loadData]); // Only re-bind if loadData changes
 
   const handlePaySupplier = async (e) => {
     e.preventDefault();
@@ -129,8 +144,7 @@ const FinancePage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar activeModule="FINANCE" />
-      <div className="flex-1 ml-64 p-8 pt-20">
+      <div className="flex-1 p-8 pt-20">
         <header className="mb-8">
             <h1 className="text-2xl font-bold text-gray-900">Financial Management</h1>
             <p className="text-gray-500">Track revenue, expenses, and supplier payments.</p>
@@ -138,7 +152,7 @@ const FinancePage = () => {
 
         {/* Tabs */}
         <div className="flex space-x-1 bg-white p-1 rounded-lg border border-gray-200 mb-6 w-fit">
-            {['OVERVIEW', 'PAYABLES', 'EXPENSES', 'REPORTS'].map(tab => (
+            {['OVERVIEW', 'PAYABLES', 'EXPENSES', 'REPORTS', 'OPTIMIZER'].map(tab => (
                 <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
@@ -175,6 +189,7 @@ const FinancePage = () => {
                          <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={[
                                 { name: 'Revenue', amount: stats.totalRevenue, fill: '#10b981' },
+                                { name: 'COGS', amount: stats.totalCOGS, fill: '#3b82f6' },
                                 { name: 'Expenses', amount: stats.totalExpenses, fill: '#f43f5e' },
                                 { name: 'Net Profit', amount: stats.netProfit, fill: '#f59e0b' },
                             ]}>
@@ -326,6 +341,10 @@ const FinancePage = () => {
                     </div>
                 </div>
             </div>
+        )}
+
+        {!loading && activeTab === 'OPTIMIZER' && (
+            <ProfitOptimizer />
         )}
 
       </div>

@@ -277,12 +277,14 @@ export const getInventory = async (req, res) => {
             const batches = await Batch.find({ productId: product._id }).sort({ expiryDate: 1 }).limit(1);
             const nextExpiryDate = batches.length > 0 ? batches[0].expiryDate : null;
             const mrp = batches.length > 0 ? batches[0].mrp : 0;
+            const costPrice = batches.length > 0 ? batches[0].costPrice : 0;
 
             return {
                 ...product,
                 totalStock: totalQuantity,
                 nextExpiryDate: nextExpiryDate,
-                mrp: mrp
+                mrp: mrp,
+                costPrice: costPrice
             };
         }));
         res.json(inventory);
@@ -339,10 +341,10 @@ export const getAllBatches = async (req, res) => {
 export const updateBatch = async (req, res) => {
   try {
     const { id } = req.params;
-    const { quantity, mrp } = req.body;
+    const { quantity, mrp, costPrice } = req.body;
 
-    if (quantity === undefined && mrp === undefined) {
-        return res.status(400).json({ message: "Valid quantity or mrp is required" });
+    if (quantity === undefined && mrp === undefined && costPrice === undefined) {
+        return res.status(400).json({ message: "Valid quantity, mrp, or costPrice is required" });
     }
 
     // For legacy update, we just update the first location or "Main Warehouse"
@@ -350,9 +352,14 @@ export const updateBatch = async (req, res) => {
     const batch = await Batch.findById(id);
     if (!batch) return res.status(404).json({ message: "Batch not found" });
 
-    if (mrp !== undefined) {
+    if (typeof mrp === 'number') {
         if (mrp < 0) return res.status(400).json({ message: "Valid mrp is required" });
         batch.mrp = mrp;
+    }
+
+    if (typeof costPrice === 'number') {
+        if (costPrice < 0) return res.status(400).json({ message: "Valid costPrice is required" });
+        batch.costPrice = costPrice;
     }
 
     // Simplistic update for compatibility: Update the first stock location
@@ -431,16 +438,20 @@ export const deleteBatch = async (req, res) => {
 export const updateProductPrice = async (req, res) => {
   try {
     const { id } = req.params; // Product ID
-    const { mrp } = req.body;
+    const { mrp, costPrice } = req.body;
 
-    if (mrp === undefined || mrp < 0) {
-        return res.status(400).json({ message: "Valid mrp is required" });
+    const updateFields = {};
+    if (typeof mrp === 'number' && mrp >= 0) updateFields.mrp = mrp;
+    if (typeof costPrice === 'number' && costPrice >= 0) updateFields.costPrice = costPrice;
+
+    if (Object.keys(updateFields).length === 0) {
+        return res.status(400).json({ message: "Valid mrp or costPrice is required" });
     }
 
-    // Update MRP for all batches of this product
-    await Batch.updateMany({ productId: id }, { $set: { mrp: mrp } });
+    // Update MRP/Cost Price for all batches of this product
+    await Batch.updateMany({ productId: id }, { $set: updateFields });
 
-    res.json({ message: "Product unit price updated successfully across all batches" });
+    res.json({ message: "Product prices updated successfully across all batches" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

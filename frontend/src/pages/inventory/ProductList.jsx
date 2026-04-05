@@ -8,7 +8,7 @@ const ProductList = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(null); // Product object
   const [deleteReason, setDeleteReason] = useState('');
   const [editingPriceId, setEditingPriceId] = useState(null);
-  const [editPriceValue, setEditPriceValue] = useState('');
+  const [editPrices, setEditPrices] = useState({ mrp: '', costPrice: '' });
 
   const getAuthHeaders = () => {
     const token = localStorage.getItem('token');
@@ -37,12 +37,12 @@ const ProductList = () => {
 
   const handleEditPriceClick = (product) => {
     setEditingPriceId(product._id);
-    setEditPriceValue(product.mrp || 0);
+    setEditPrices({ mrp: product.mrp || 0, costPrice: product.costPrice || 0 });
   };
 
   const handleCancelEdit = () => {
     setEditingPriceId(null);
-    setEditPriceValue('');
+    setEditPrices({ mrp: '', costPrice: '' });
   };
 
   const handleSavePrice = async (productId) => {
@@ -50,7 +50,10 @@ const ProductList = () => {
       const res = await fetch(`/api/inventory/products/${productId}/price`, {
         method: 'PUT',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ mrp: Number(editPriceValue) })
+        body: JSON.stringify({ 
+            ...(editPrices.mrp !== '' && { mrp: Number(editPrices.mrp) }),
+            ...(editPrices.costPrice !== '' && { costPrice: Number(editPrices.costPrice) })
+        })
       });
 
       const data = await res.json();
@@ -104,6 +107,7 @@ const ProductList = () => {
                 <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Generic</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cost Price</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unit Price</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Stock</th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
@@ -122,8 +126,26 @@ const ProductList = () => {
                                         min="0"
                                         step="0.01"
                                         className="border border-gray-300 rounded px-2 py-1 w-24 text-sm focus:outline-none focus:border-blue-500"
-                                        value={editPriceValue}
-                                        onChange={(e) => setEditPriceValue(e.target.value)}
+                                        value={editPrices.costPrice}
+                                        onChange={(e) => setEditPrices({...editPrices, costPrice: e.target.value})}
+                                    />
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-2 group">
+                                    <span>Rs. {product.costPrice || 0}</span>
+                                </div>
+                            )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {editingPriceId === product._id ? (
+                                <div className="flex items-center gap-2">
+                                    <input 
+                                        type="number" 
+                                        min="0"
+                                        step="0.01"
+                                        className="border border-gray-300 rounded px-2 py-1 w-24 text-sm focus:outline-none focus:border-blue-500"
+                                        value={editPrices.mrp}
+                                        onChange={(e) => setEditPrices({...editPrices, mrp: e.target.value})}
                                     />
                                     <button onClick={() => handleSavePrice(product._id)} className="text-green-600 hover:text-green-900" title="Save"><Check className="w-5 h-5" /></button>
                                     <button onClick={handleCancelEdit} className="text-gray-400 hover:text-gray-600" title="Cancel"><X className="w-5 h-5" /></button>
@@ -148,7 +170,7 @@ const ProductList = () => {
                         </td>
                     </tr>
                 ))}
-                 {products.length === 0 && <tr><td colSpan="5" className="text-center py-4 text-gray-500">No products found</td></tr>}
+                 {products.length === 0 && <tr><td colSpan="6" className="text-center py-4 text-gray-500">No products found</td></tr>}
             </tbody>
         </table>
       </div>

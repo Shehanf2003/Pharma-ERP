@@ -12,6 +12,7 @@ import os
 import datetime
 from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
+import pulp
 
 # Load environment variables from the backend .env file
 load_dotenv(dotenv_path="../backend/.env")
@@ -264,4 +265,149 @@ def evaluate_forecast(product_id: str, test_days: int = 10):
             "RMSE": round(rmse, 2)
         },
         "comparison": comparison
+    }
+# ---------------------------------------------------------
+# MODEL 3: Profit Optimization & Expense Prescriptions (Sri Lanka Context)
+# ---------------------------------------------------------
+@app.get("/api/ml/optimize-profit")
+def optimize_profit(
+    target_net_profit: float, 
+    current_monthly_expenses: float, 
+    utility_costs: float = 0.0,
+    innovator_brand_percentage: float = 0.0,
+    lkr_devaluation_percent: float = 0.0,
+    days_to_predict: int = 30
+):
+    """
+    Uses Prophet to forecast store-wide Gross Profit, then prescribes 
+    expense reductions and operational strategies using PuLP Integer Optimization.
+    """
+    # 1. Fetch store-wide sales to calculate historical Gross Profit
+    pipeline = [
+        {"$unwind": "$items"},
+        {"$match": {"status": {"$ne": "returned"}}},
+        {"$project": {
+            "date": {"$dateToString": {"format": "%Y-%m-%d", "date": "$createdAt"}},
+            "gross_profit": {
+                "$multiply": [
+                    {"$subtract": ["$items.price", "$items.costPrice"]},
+                    "$items.quantity"
+                ]
+            }
+        }}
+    ]
+    
+    sales = list(db.sales.aggregate(pipeline))
+    if len(sales) < 30:
+        raise HTTPException(status_code=400, detail="Not enough historical data to forecast profit.")
+
+    # 2. Prepare Time-Series Data for Prophet
+    df = pd.DataFrame(sales)
+    df['ds'] = pd.to_datetime(df['date'])
+    df.rename(columns={'gross_profit': 'y'}, inplace=True)
+    
+    daily_profit = df.groupby('ds')['y'].sum().reset_index()
+    daily_profit.set_index('ds', inplace=True)
+    daily_profit = daily_profit.asfreq('D', fill_value=0).reset_index()
+
+    # 3. Apply Meta's Prophet Model
+    try:
+        model = Prophet(yearly_seasonality='auto', weekly_seasonality=True, daily_seasonality=False)
+        model.add_country_holidays(country_name='LK') # Sri Lankan holidays (Poya, Avurudu)
+        model.fit(daily_profit)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Model training failed: {str(e)}")
+
+    # 4. Forecast future days
+    future = model.make_future_dataframe(periods=days_to_predict)
+    forecast = model.predict(future)
+    future_forecast = forecast.tail(days_to_predict)
+    
+    forecasted_gross_profit = float(future_forecast['yhat'].apply(lambda x: max(0, x)).sum())
+
+    # 5. Calculate Gap Analysis
+    target_expenses = forecasted_gross_profit - target_net_profit
+    expense_reduction_needed = current_monthly_expenses - target_expenses
+    
+    # 6. Generate AI-Driven Prescriptions (PuLP Optimization Engine)
+    suggestions = []
+    is_achievable = bool(target_expenses >= 0)
+
+    if not is_achievable:
+        suggestions.append("Critical: Target profit exceeds forecasted Gross Profit. Expense cuts alone are insufficient; you must increase sales volume or retail prices.")
+    elif expense_reduction_needed > 0:
+        
+        # Define the pool of potential operational actions. 
+        # In a full production system, this list could be fetched dynamically from MongoDB.
+        # Savings are estimated as a percentage of current expenses or fixed metrics.
+        action_pool = [
+            {"id": "inv_rat", "name": "Inventory Rationalization (Drop Fringe Cluster stock)", "savings": 0.05 * current_monthly_expenses, "disruption": 2},
+            {"id": "brand_con", "name": "Brand Consolidation (Filter non-BE brands)", "savings": 0.03 * current_monthly_expenses, "disruption": 1},
+            {"id": "proc_opt", "name": "Procurement Optimization (Bulk discounts on NCDs)", "savings": 0.08 * current_monthly_expenses, "disruption": 3},
+            {"id": "util_mgt", "name": "Utility Management (TOU arbitrage / Off-peak scheduling)", "savings": utility_costs * 0.15 if utility_costs else 0.02 * current_monthly_expenses, "disruption": 2},
+            {"id": "staff_ros", "name": "Staff Rostering (Sunday Closure / Pharmacist-Only Shift)", "savings": 0.15 * current_monthly_expenses, "disruption": 8},
+            {"id": "green_fin", "name": "Initiate Green Loan for Solar Power System", "savings": utility_costs * 0.40 if utility_costs else 0, "disruption": 5}
+        ]
+
+        # Initialize the Problem: We want to MINIMIZE business disruption
+        prob = pulp.LpProblem("Pharmacy_Expense_Optimization", pulp.LpMinimize)
+
+        # Define Decision Variables: 1 if we take the action, 0 if we don't
+        action_vars = pulp.LpVariable.dicts("Action", [action["id"] for action in action_pool], cat='Binary')
+
+        # Objective Function: Sum of Disruption Scores
+        prob += pulp.lpSum([action["disruption"] * action_vars[action["id"]] for action in action_pool]), "Total_Disruption"
+
+        # Constraint 1: The chosen actions MUST save enough money to hit the target
+        prob += pulp.lpSum([action["savings"] * action_vars[action["id"]] for action in action_pool]) >= expense_reduction_needed, "Meet_Savings_Target"
+
+        # Constraint 2: Dynamic Business Rule (e.g., Only suggest Green Loan if utility costs are high)
+        if utility_costs <= (0.10 * target_net_profit):
+            prob += action_vars["green_fin"] == 0, "Disable_Green_Finance_If_Not_Needed"
+
+        # Solve the model (msg=False hides the solver terminal output)
+        prob.solve(pulp.PULP_CBC_CMD(msg=False))
+
+        # Parse the mathematical output back into readable suggestions
+        if pulp.LpStatus[prob.status] == 'Optimal':
+            total_planned_savings = 0
+            for action in action_pool:
+                if action_vars[action["id"]].varValue == 1.0:
+                    suggestions.append(f"{action['name']} (Est. Rs. {round(action['savings'], 2)} savings)")
+                    total_planned_savings += action['savings']
+            
+            suggestions.insert(0, f"Optimal Action Plan: Implement the following combination to reduce expenses by ~Rs. {round(total_planned_savings, 2)} with minimal operational disruption.")
+        else:
+            suggestions.append(f"Warning: The mathematical optimizer could not find a combination of actions to reach the Rs. {round(expense_reduction_needed, 2)} target. Consider revising your Net Profit target.")
+
+    # 7. Continuous Intelligence Rules (Active Business Alerts)
+    active_alerts = []
+    
+    # Generic Switch Rule
+    if expense_reduction_needed > 0 and innovator_brand_percentage > 20.0:
+        active_alerts.append({
+            "type": "Margin Maximization",
+            "message": "Generic Counseling Alert: Current basket contains >20% innovator brands. Prompt pharmacists to offer higher-margin (up to 30%) generic alternatives."
+        })
+        
+    # Forex Risk Mitigation Rule
+    if lkr_devaluation_percent > 3.0:
+        active_alerts.append({
+            "type": "Forex Risk",
+            "message": "Stock Preservation Alert: LKR has devalued >3%. Avoid clearance sales or deep discounts on imported stock, as replacement import costs will rise sharply."
+        })
+
+    # 8. Format Output
+    return {
+        "periodDays": days_to_predict,
+        "financials": {
+            "forecastedGrossProfit": round(forecasted_gross_profit, 2),
+            "targetNetProfit": round(target_net_profit, 2),
+            "currentExpenses": round(current_monthly_expenses, 2),
+            "targetAllowedExpenses": max(0, round(target_expenses, 2)),
+            "reductionNeeded": max(0, round(expense_reduction_needed, 2))
+        },
+        "isAchievable": is_achievable,
+        "actionPlan": suggestions,
+        "activeAlerts": active_alerts
     }

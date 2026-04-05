@@ -1,4 +1,3 @@
-
 import Sale from '../models/Sale.js';
 import Customer from '../models/Customer.js';
 import Prescription from '../models/Prescription.js';
@@ -14,6 +13,7 @@ const saleItemSchema = z.object({
   batchId: z.string(),
   quantity: z.number().int().positive(),
   price: z.number().positive(),
+  costPrice: z.number().min(0).optional(),
   discount: z.number().default(0),
   dosageInstructions: z.object({
       patientName: z.string().optional(),
@@ -161,6 +161,14 @@ export const createSale = async (req, res) => {
         sendBillNotification({ email: customerEmail, phone: customerPhone }, sale).catch(err => {
             console.error("Failed to send bill notification:", err);
         });
+    }
+
+    // Trigger Real-Time Updates
+    const io = req.app.get('io');
+    if (io) {
+        io.emit('DASHBOARD_UPDATE');
+        io.emit('STATS_UPDATE');
+        io.emit('FINANCE_UPDATE');
     }
 
     res.status(201).json(sale);
@@ -324,6 +332,14 @@ export const processReturn = async (req, res) => {
             }
         }
 
+        // Trigger Real-Time Updates
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('DASHBOARD_UPDATE');
+            io.emit('STATS_UPDATE');
+            io.emit('FINANCE_UPDATE');
+        }
+
         res.json({ message: "Return processed successfully", sale, refundTotal });
 
     } catch (error) {
@@ -345,7 +361,7 @@ export const getPosProducts = async (req, res) => {
                 productId: product._id,
                 quantity: { $gt: 0 },
                 expiryDate: { $gt: new Date() } // active batches only
-            }).select('batchNumber expiryDate mrp quantity');
+            }).select('batchNumber expiryDate mrp costPrice quantity');
 
             if (batches.length === 0) return null;
 

@@ -137,6 +137,7 @@ export const getDashboardStats = async (req, res) => {
       },
       finance: {
         revenue: totalRevenue,
+        cogs: totalCOGS,
         expenses: totalExpenses,
         profit: netProfit
       },

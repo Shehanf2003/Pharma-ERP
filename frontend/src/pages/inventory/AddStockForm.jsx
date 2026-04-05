@@ -31,7 +31,8 @@ const AddStockForm = ({ products, onSubmit, isLoading }) => {
       const formattedData = {
           ...data,
           mrp: Number(data.mrp),
-          quantity: Number(data.quantity)
+          quantity: Number(data.quantity),
+          ...(data.costPrice !== undefined && data.costPrice !== '' ? { costPrice: Number(data.costPrice) } : {})
       };
       await onSubmit(formattedData);
       reset();
@@ -177,6 +178,26 @@ const AddStockForm = ({ products, onSubmit, isLoading }) => {
               )}
             />
             {errors.mrp && <p className="mt-1 text-sm text-red-600">{errors.mrp.message}</p>}
+          </div>
+        </div>
+
+        <div className="sm:col-span-2">
+          <label htmlFor="costPrice" className="block text-sm font-medium text-gray-700">
+            Cost Price (Per Unit)
+          </label>
+          <div className="mt-1">
+            <input
+              type="number"
+              id="costPrice"
+              step="0.01"
+              min="0"
+              {...register('costPrice', { min: 0 })}
+              className={clsx(
+                "block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border",
+                errors.costPrice && "border-red-300"
+              )}
+            />
+            {errors.costPrice && <p className="mt-1 text-sm text-red-600">{errors.costPrice.message}</p>}
           </div>
         </div>
       </div>

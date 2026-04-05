@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import Sidebar from './dashboard/Sidebar';
 import StatCard from './dashboard/StatCard';
 import RevenueChart from './dashboard/RevenueChart';
 import axiosInstance from '../lib/axios';
 import { Package, ShoppingCart, TrendingUp, AlertCircle, Plus, DollarSign, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { socket } from '../lib/socket'; 
 
 const Dashboard = () => {
   const [stats, setStats] = useState(null);
@@ -21,7 +22,7 @@ const Dashboard = () => {
       };
   });
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       const res = await axiosInstance.get(`/dashboard/stats?startDate=${dateRange.start}&endDate=${dateRange.end}`);
       setStats(res.data);
@@ -30,20 +31,27 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [dateRange.start, dateRange.end]);
 
+  // Initial fetch on mount or date change
   useEffect(() => {
     if (dateRange.start && dateRange.end && new Date(dateRange.start) <= new Date(dateRange.end)) {
         fetchStats();
-
-        // Auto-update dashboard stats without full page reload
-        const interval = setInterval(() => {
-            fetchStats();
-        }, 30000); // 30 seconds
-        
-        return () => clearInterval(interval);
     }
-  }, [dateRange.start, dateRange.end]);
+  }, [dateRange.start, dateRange.end, fetchStats]);
+
+  // Handle Socket Events separately to prevent duplicate listeners
+  useEffect(() => {
+      // Attach listeners
+      socket.on('DASHBOARD_UPDATE', fetchStats);
+      socket.on('STATS_UPDATE', fetchStats);
+
+      // Cleanup listeners on unmount
+      return () => {
+          socket.off('DASHBOARD_UPDATE', fetchStats);
+          socket.off('STATS_UPDATE', fetchStats);
+      };
+  }, [fetchStats]); // Only re-bind if fetchStats changes
 
   const handleAddExpense = async (e) => {
     e.preventDefault();
@@ -72,7 +80,7 @@ const Dashboard = () => {
       <Sidebar activeModule="DASHBOARD" />
 
       {/* Main Content Area - offset by sidebar width */}
-      <div className="ml-64 p-8 pt-24"> {/* pt-24 to clear fixed Navbar if it exists, or just spacing */}
+      <div className="ml-64 p-8 pt-24"> 
 
         <div className="flex justify-between items-center mb-8">
             <div>
@@ -125,7 +133,7 @@ const Dashboard = () => {
              value={stats?.inventory?.activeProducts || 0}
              icon={AlertCircle}
              color="rose"
-             trend={stats?.inventory?.activeProducts > 0 ? 'down' : 'up'} // 'down' is bad here visually, but contextually 'red' means alert
+             trend={stats?.inventory?.activeProducts > 0 ? 'down' : 'up'} 
              trendValue="Needs Action"
            />
            <StatCard
@@ -162,7 +170,7 @@ const Dashboard = () => {
                 <RevenueChart data={stats?.chartData || []} />
             </div>
 
-            {/* Side Panel (e.g. Recent Activity or Quick Actions) */}
+            {/* Side Panel */}
             <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col">
                 <h3 className="text-lg font-bold text-gray-900 mb-6">Quick Stats</h3>
 
@@ -180,10 +188,10 @@ const Dashboard = () => {
                     <div>
                          <div className="flex justify-between text-sm font-medium mb-2">
                             <span className="text-gray-500">Monthly Target</span>
-                            <span className="text-emerald-600">Rs. {stats?.finance?.revenue?.toLocaleString()} / 500k</span>
+                            <span className="text-emerald-600">Rs. {stats?.finance?.revenue?.toLocaleString() || 0} / 500k</span>
                         </div>
                         <div className="w-full bg-gray-100 rounded-full h-2">
-                            <div className="bg-emerald-500 h-2 rounded-full" style={{ width: `${Math.min((stats?.finance?.revenue / 500000) * 100, 100)}%` }}></div>
+                            <div className="bg-emerald-500 h-2 rounded-full" style={{ width: `${Math.min(((stats?.finance?.revenue || 0) / 500000) * 100, 100)}%` }}></div>
                         </div>
                     </div>
 

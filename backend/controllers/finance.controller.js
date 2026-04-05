@@ -108,9 +108,7 @@ export const getReports = async (req, res) => {
     } else if (type === 'PNL') {
       // Aggregate by Day
       // This is a bit complex for a simple query, returning raw data for frontend processing
-      // or we can aggregate here.
-      // Let's return raw aggregated data.
-
+      // or we can aggregate here. Let's return raw aggregated data.
       const sales = await Sale.find({
         createdAt: { $gte: start, $lte: end },
         status: 'completed'
@@ -129,4 +127,42 @@ export const getReports = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
+};
+
+export const getExpenses = async (req, res) => {
+  try {
+    const expenses = await Expense.find().sort({ date: -1 }).limit(100);
+    res.json(expenses);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const addExpense = async (req, res) => {
+    try {
+        const { description, amount, category, date } = req.body;
+
+        const expense = new Expense({
+            description,
+            amount: Number(amount),
+            category,
+            date: date || new Date(),
+            // Optional: link to the user who created it if you have auth middleware
+            // user: req.user?._id 
+        });
+
+        await expense.save();
+
+        // Trigger Real-Time Updates
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('FINANCE_UPDATE');
+            io.emit('DASHBOARD_UPDATE');
+            io.emit('STATS_UPDATE');
+        }
+
+        res.status(201).json(expense);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
 };

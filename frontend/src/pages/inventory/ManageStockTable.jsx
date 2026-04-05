@@ -7,7 +7,7 @@ import {
   getExpandedRowModel
 } from '@tanstack/react-table';
 import clsx from 'clsx';
-import { Save, Trash2, ChevronRight, ChevronDown, ArrowRightLeft, Edit3, Search, Scan, Printer } from 'lucide-react';
+import { Save, Trash2, ChevronRight, ChevronDown, ArrowRightLeft, Edit3, Search, Scan, Printer, Check, X, DollarSign } from 'lucide-react';
 import ScannerModal from '../../components/ScannerModal';
 import PrintLabelModal from '../../components/inventory/PrintLabelModal';
 
@@ -27,6 +27,10 @@ const ManageStockTable = () => {
   // Adjust Modal State
   const [showAdjust, setShowAdjust] = useState(null);
   const [adjustData, setAdjustData] = useState({ location: '', quantity: 0, reason: '' });
+
+  // Inline Edit State for Prices
+  const [editingBatchId, setEditingBatchId] = useState(null);
+  const [editPrices, setEditPrices] = useState({ mrp: 0, costPrice: 0 });
 
   const getAuthHeaders = () => {
     const token = localStorage.getItem('token');
@@ -174,6 +178,27 @@ const ManageStockTable = () => {
       }
   };
 
+  const handleSavePrices = async (batchId) => {
+      try {
+          const res = await fetch(`/api/inventory/batches/${batchId}`, {
+              method: 'PATCH',
+              headers: getAuthHeaders(),
+              body: JSON.stringify({ 
+                  ...(editPrices.mrp !== '' && { mrp: Number(editPrices.mrp) }),
+                  ...(editPrices.costPrice !== '' && { costPrice: Number(editPrices.costPrice) })
+              })
+          });
+
+          if (!res.ok) throw new Error((await res.json()).message || 'Failed to save prices');
+
+          // Refresh list to show updated prices
+          setEditingBatchId(null);
+          fetchData();
+      } catch (err) {
+          alert(err.message);
+      }
+  };
+
 
   const columns = useMemo(
     () => [
@@ -216,14 +241,66 @@ const ManageStockTable = () => {
         }
       },
       {
+        header: 'MRP',
+        accessorKey: 'mrp',
+        cell: (info) => {
+            if (editingBatchId === info.row.original._id) {
+                return (
+                    <input
+                        type="number" min="0" step="0.01"
+                        className="border border-gray-300 rounded px-2 py-1 w-24 text-sm"
+                        value={editPrices.mrp}
+                        onChange={e => setEditPrices(prev => ({ ...prev, mrp: e.target.value }))}
+                    />
+                );
+            }
+            const val = info.getValue();
+            return val !== undefined && val !== null ? `Rs. ${Number(val).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Rs. 0.00';
+        }
+      },
+      {
+        header: 'Cost Price',
+        accessorKey: 'costPrice',
+        cell: (info) => {
+            if (editingBatchId === info.row.original._id) {
+                return (
+                    <input
+                        type="number" min="0" step="0.01"
+                        className="border border-gray-300 rounded px-2 py-1 w-24 text-sm"
+                        value={editPrices.costPrice}
+                        onChange={e => setEditPrices(prev => ({ ...prev, costPrice: e.target.value }))}
+                    />
+                );
+            }
+            const val = info.getValue();
+            return val !== undefined && val !== null ? `Rs. ${Number(val).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Rs. 0.00';
+        }
+      },
+      {
         header: 'Total Quantity',
         accessorKey: 'quantity',
       },
       {
         header: 'Actions',
         id: 'actions',
-        cell: ({ row }) => (
+        cell: ({ row }) => {
+           if (editingBatchId === row.original._id) {
+               return (
+                   <div className="flex space-x-2">
+                       <button onClick={() => handleSavePrices(row.original._id)} className="text-green-600 hover:text-green-900" title="Save"><Check className="w-5 h-5" /></button>
+                       <button onClick={() => setEditingBatchId(null)} className="text-gray-400 hover:text-gray-600" title="Cancel"><X className="w-5 h-5" /></button>
+                   </div>
+               );
+           }
+           return (
            <div className="flex space-x-2">
+               <button
+                   onClick={() => { setEditingBatchId(row.original._id); setEditPrices({ mrp: row.original.mrp || 0, costPrice: row.original.costPrice || 0 }); }}
+                   className="text-emerald-600 hover:text-emerald-900"
+                   title="Edit Prices"
+               >
+                   <DollarSign className="w-5 h-5" />
+               </button>
                <button
                    onClick={() => setPrintData(row.original)}
                    className="text-gray-600 hover:text-gray-900"
@@ -253,10 +330,11 @@ const ManageStockTable = () => {
                    <Trash2 className="w-5 h-5" />
                </button>
            </div>
-        )
+           );
+        }
       }
     ],
-    []
+    [editingBatchId, editPrices]
   );
 
   const table = useReactTable({

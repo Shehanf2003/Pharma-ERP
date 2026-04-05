@@ -72,6 +72,7 @@ async function ensureSimulationProductsExist() {
                 productId: newProduct._id,
                 batchNumber: `SIM-${Date.now().toString().slice(-6)}`,
                 mrp: med.mrp,
+                costPrice: parseFloat((med.mrp * 0.7).toFixed(2)),
                 quantity: 5000, 
                 expiryDate: new Date(new Date().setFullYear(new Date().getFullYear() + 2)),
                 supplier: 'SPMC Simulation'
@@ -202,12 +203,14 @@ async function startSimulation() {
 
                     const qty = getRandomInt(minQty, maxQty);
                     const price = batch.mrp;
+                    const costPrice = batch.costPrice || parseFloat((price * 0.7).toFixed(2));
 
                     items.push({
                         productId: batch.productId._id,
                         batchId: batch._id,
                         quantity: qty,
-                        price: price
+                        price: price,
+                        costPrice: costPrice
                     });
 
                     totalAmount += (price * qty);
