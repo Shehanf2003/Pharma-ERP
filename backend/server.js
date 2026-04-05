@@ -16,6 +16,7 @@ import financeRoutes from "./routes/finance.route.js";
 import shiftRoutes from "./routes/shift.routes.js";
 import paymentRoutes from "./routes/payment.routes.js";
 import prescriptionRoutes from "./routes/prescription.routes.js";
+import salesRoutes from './routes/sales.routes.js';
 
 dotenv.config();
 
@@ -67,6 +68,7 @@ app.use("/api/finance", financeRoutes);
 app.use("/api/shifts", shiftRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/prescriptions", prescriptionRoutes);
+app.use('/api/sales', salesRoutes);
 
 // Database Connection & Server Start
 connectDB().then(() => {
