@@ -1,24 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import axiosInstance from '../lib/axios';
+import { Loader2, DollarSign, TrendingUp, AlertTriangle, Clock, AlertCircle, Package } from 'lucide-react';
 
-const ReportingAnalytics = () => {
+const ReportingAnalytics = ({ startDate, endDate }) => {
   
-  // Date Range Filtering
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-
   // Data States
   const [inventory, setInventory] = useState([]);
   const [lowStock, setLowStock] = useState([]);
   const [expiring, setExpiring] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [stockValuation, setStockValuation] = useState({ totalCost: 0, totalMrp: 0 });
 
   // Fetch standard Inventory Reports
   const fetchInventoryReports = async () => {
     setLoading(true);
     setError('');
     try {
+      const params = {};
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate; // Send the date!
+
+      // Fetch the historical valuation
+      const valRes = await axiosInstance.get('/inventory/valuation', { params });
+      setStockValuation(valRes.data);
+
       // 1. Fetch main inventory
       const invRes = await axiosInstance.get('/inventory');
       const inventoryData = invRes.data;
@@ -72,103 +78,105 @@ const ReportingAnalytics = () => {
 
   useEffect(() => {
     fetchInventoryReports();
-  }, []);
-
-  // Handler for custom date range application
-  const applyDateFilter = () => {
-    fetchInventoryReports();
-  };
-
-  // Calculate Stock Valuations
-  const stockValuation = inventory.reduce(
-    (acc, item) => {
-      acc.totalCost += (item.costPrice || 0) * (item.totalStock || 0);
-      acc.totalMrp += (item.mrp || 0) * (item.totalStock || 0);
-      return acc;
-    },
-    { totalCost: 0, totalMrp: 0 }
-  );
+  }, [startDate, endDate]);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Reporting & Analytics</h1>
-        
-        {/* Customizable Date Range Filtering */}
-        <div className="flex items-center space-x-3 bg-white p-3 rounded shadow-sm border">
-          <div>
-            <label className="text-xs text-gray-500 block">Start Date</label>
-            <input 
-              type="date" 
-              value={startDate} 
-              onChange={(e) => setStartDate(e.target.value)}
-              className="border p-1 rounded text-sm"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 block">End Date</label>
-            <input 
-              type="date" 
-              value={endDate} 
-              onChange={(e) => setEndDate(e.target.value)}
-              className="border p-1 rounded text-sm"
-            />
-          </div>
-          <button 
-            onClick={applyDateFilter}
-            className="mt-4 bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm"
-          >
-            Apply Filter
-          </button>
-        </div>
+    <div className="p-4 sm:p-6 w-full">
+      <div className="mb-6">
+        <h2 className="text-xl font-bold text-gray-900">Stock Analytics</h2>
+        <p className="text-sm text-gray-500 mt-1">Valuation and aging alerts for your current inventory.</p>
       </div>
 
-      {error && <div className="bg-red-100 text-red-700 p-3 mb-4 rounded">{error}</div>}
-      {loading && <div className="text-blue-600 mb-4 font-semibold animate-pulse">Loading data...</div>}
-
-      {/* Inventory Reports Tab */}
-      {!loading && (
-        <div className="space-y-6">
+      {error && (
+        <div className="mb-6 rounded-md bg-red-50 p-4 border-l-4 border-red-500 flex items-start">
+          <AlertCircle className="h-5 w-5 text-red-400 mr-3 flex-shrink-0" />
+          <p className="text-sm text-red-700 font-medium">{error}</p>
+        </div>
+      )}
+      
+      {loading ? (
+        <div className="flex flex-col justify-center items-center py-16">
+          <Loader2 className="w-10 h-10 animate-spin text-indigo-600 mb-4" />
+          <span className="text-gray-500 font-medium text-sm">Gathering stock analytics...</span>
+        </div>
+      ) : (
+        <div className="space-y-8">
           {/* KPI Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white p-5 rounded shadow border-l-4 border-blue-500">
-              <h3 className="text-gray-500 text-sm">Total Stock Cost Value</h3>
-              <p className="text-2xl font-bold">Rs. {stockValuation.totalCost.toLocaleString()}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm border-t-4 border-t-indigo-500 flex items-center justify-between hover:shadow-md transition-shadow">
+              <div>
+                <p className="text-sm text-gray-500 font-medium">Total Stock Cost</p>
+                <p className="text-2xl font-bold text-gray-900 mt-2">Rs. {stockValuation.totalCost.toLocaleString()}</p>
+              </div>
+              <div className="p-3 bg-indigo-50 rounded-xl"><DollarSign className="w-6 h-6 text-indigo-600" /></div>
             </div>
-            <div className="bg-white p-5 rounded shadow border-l-4 border-green-500">
-              <h3 className="text-gray-500 text-sm">Estimated MRP Value</h3>
-              <p className="text-2xl font-bold">Rs. {stockValuation.totalMrp.toLocaleString()}</p>
+            <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm border-t-4 border-t-emerald-500 flex items-center justify-between hover:shadow-md transition-shadow">
+              <div>
+                <p className="text-sm text-gray-500 font-medium">Estimated MRP Value</p>
+                <p className="text-2xl font-bold text-gray-900 mt-2">Rs. {stockValuation.totalMrp.toLocaleString()}</p>
+              </div>
+              <div className="p-3 bg-emerald-50 rounded-xl"><TrendingUp className="w-6 h-6 text-emerald-600" /></div>
             </div>
-            <div className="bg-white p-5 rounded shadow border-l-4 border-red-500">
-              <h3 className="text-gray-500 text-sm">Items Low on Stock</h3>
-              <p className="text-2xl font-bold">{lowStock.length}</p>
+            <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm border-t-4 border-t-rose-500 flex items-center justify-between hover:shadow-md transition-shadow">
+              <div>
+                <p className="text-sm text-gray-500 font-medium">Low Stock Items</p>
+                <p className="text-2xl font-bold text-gray-900 mt-2">{lowStock.length}</p>
+              </div>
+              <div className="p-3 bg-rose-50 rounded-xl"><AlertTriangle className="w-6 h-6 text-rose-600" /></div>
             </div>
           </div>
 
           {/* Expiring Batches Table */}
-          <div className="bg-white rounded shadow p-4">
-            <h2 className="text-lg font-bold mb-3 text-red-600">Aging & Expiring Batches (Next 90 Days)</h2>
-            <table className="min-w-full table-auto border-collapse">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="p-2 text-left text-sm text-gray-600">Product Name</th>
-                  <th className="p-2 text-left text-sm text-gray-600">Batch No</th>
-                  <th className="p-2 text-left text-sm text-gray-600">Expiry Date</th>
-                  <th className="p-2 text-left text-sm text-gray-600">Qty Remaining</th>
-                </tr>
-              </thead>
-              <tbody>
-                {expiring.map(batch => (
-                  <tr key={batch._id} className="border-b hover:bg-gray-50">
-                    <td className="p-2">{batch.productId?.name || 'Unknown'}</td>
-                    <td className="p-2">{batch.batchNumber}</td>
-                    <td className="p-2 font-semibold text-red-500">{new Date(batch.expiryDate).toLocaleDateString()}</td>
-                    <td className="p-2">{batch.quantity}</td>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="px-6 py-5 border-b border-gray-100 flex items-center gap-2 bg-gray-50/50">
+              <Clock className="w-5 h-5 text-amber-500" />
+              <h3 className="text-lg font-bold text-gray-900">Aging & Expiring Batches (Next 90 Days)</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Product Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Batch No</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Expiry Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Qty Remaining</th>
                   </tr>
-                ))}
-                {expiring.length === 0 && <tr><td colSpan="4" className="p-4 text-center text-gray-500">No batches expiring soon.</td></tr>}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {expiring.map(batch => (
+                    <tr key={batch._id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {batch.productId?.name || 'Unknown'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded-md text-xs font-medium border border-gray-200">
+                          {batch.batchNumber}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 border border-rose-200">
+                          {new Date(batch.expiryDate).toLocaleDateString()}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {batch.quantity}
+                      </td>
+                    </tr>
+                  ))}
+                  {expiring.length === 0 && (
+                    <tr>
+                      <td colSpan="4" className="px-6 py-12 text-center">
+                        <div className="flex flex-col items-center justify-center text-gray-500">
+                          <Package className="w-10 h-10 text-gray-300 mb-3" />
+                          <p className="text-sm font-medium text-gray-900">No expiring batches</p>
+                          <p className="text-xs mt-1">All current inventory is well within expiry limits.</p>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}

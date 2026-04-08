@@ -4,12 +4,16 @@ import {
   PlusCircle, Search, Loader2, X, Calendar, Filter, BarChart3 
 } from 'lucide-react';
 // Recharts for Forecast
-import { LineChart, Line, XAxis, YAxis as RechartsYAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend as RechartsLegend, ResponsiveContainer } from 'recharts';
-// Tremor for Sales Dashboard
-import { Card, Title, AreaChart, BarChart, DonutChart, Grid, Col, Metric, Text, Flex } from '@tremor/react';
+import { 
+  LineChart, Line, XAxis, YAxis as RechartsYAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend as RechartsLegend, ResponsiveContainer,
+  AreaChart, Area, PieChart, Pie, Cell, BarChart, Bar 
+} from 'recharts';
 
 import ReportingAnalytics from './ReportingAnalytics'; // Your existing component
 import axiosInstance from '../lib/axios';
+
+// Colors for Donut/Pie Chart
+const DONUT_COLORS = ['#64748b', '#8b5cf6', '#4f46e5', '#f43f5e', '#0ea5e9'];
 
 const Reports = () => {
     // --- Global Date Filtering States ---
@@ -137,6 +141,9 @@ const Reports = () => {
         setPoModal({ isOpen: false, data: null });
     };
 
+    // Helper for formatting currency in Recharts
+    const formatCurrency = (value) => `Rs. ${Intl.NumberFormat("us").format(value)}`;
+
     return (
         <div className="p-6 md:p-8 max-w-7xl mx-auto bg-slate-50 min-h-screen">
             
@@ -173,6 +180,13 @@ const Reports = () => {
                         <Filter className="w-4 h-4 mr-2" />
                         Apply
                     </button>
+                    <button 
+                        onClick={() => { setStartDate(''); setEndDate(''); }}
+                        className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 text-sm font-medium flex items-center transition-colors"
+                    >
+                        <X className="w-4 h-4 mr-1" />
+                        Clear
+                    </button>
                 </div>
             </div>
 
@@ -196,7 +210,7 @@ const Reports = () => {
                 ))}
             </div>
 
-            {/* --- TAB 1: SALES TRENDS (TREMOR UI) --- */}
+            {/* --- TAB 1: SALES TRENDS (REFACTORED WITH RECHARTS) --- */}
             {activeTab === 'SALES' && (
                 <div className="space-y-6">
                     {loadingSales ? (
@@ -204,64 +218,105 @@ const Reports = () => {
                     ) : (
                         <>
                             {/* KPI Cards */}
-                            <Grid numItems={1} numItemsSm={2} numItemsLg={3} className="gap-6">
-                                <Card decoration="top" decorationColor="indigo">
-                                    <Text>Total Revenue</Text>
-                                    <Metric>Rs. {salesMetrics.totalRevenue.toLocaleString()}</Metric>
-                                </Card>
-                                <Card decoration="top" decorationColor="fuchsia">
-                                    <Text>Total Orders</Text>
-                                    <Metric>{salesMetrics.totalOrders.toLocaleString()}</Metric>
-                                </Card>
-                                <Card decoration="top" decorationColor="emerald">
-                                    <Text>Avg. Order Value</Text>
-                                    <Metric>Rs. {salesMetrics.avgOrderValue.toLocaleString()}</Metric>
-                                </Card>
-                            </Grid>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm border-t-4 border-t-indigo-500">
+                                    <p className="text-sm text-gray-500 font-medium">Total Revenue</p>
+                                    <p className="text-3xl font-semibold text-gray-900 mt-2">Rs. {salesMetrics.totalRevenue.toLocaleString()}</p>
+                                </div>
+                                <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm border-t-4 border-t-fuchsia-500">
+                                    <p className="text-sm text-gray-500 font-medium">Total Orders</p>
+                                    <p className="text-3xl font-semibold text-gray-900 mt-2">{salesMetrics.totalOrders.toLocaleString()}</p>
+                                </div>
+                                <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm border-t-4 border-t-emerald-500">
+                                    <p className="text-sm text-gray-500 font-medium">Avg. Order Value</p>
+                                    <p className="text-3xl font-semibold text-gray-900 mt-2">Rs. {salesMetrics.avgOrderValue.toLocaleString()}</p>
+                                </div>
+                            </div>
 
                             {/* Main Charts Area */}
-                            <Grid numItems={1} numItemsLg={3} className="gap-6">
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                                 {/* Revenue Over Time */}
-                                <Col numColSpan={1} numColSpanLg={2}>
-                                    <Card>
-                                        <Title>Revenue Over Time</Title>
-                                        <AreaChart
-                                            className="h-72 mt-4"
-                                            data={salesTrends}
-                                            index="date"
-                                            categories={["Revenue"]}
-                                            colors={["indigo"]}
-                                            valueFormatter={(number) => `Rs. ${Intl.NumberFormat("us").format(number).toString()}`}
-                                        />
-                                    </Card>
-                                </Col>
+                                <div className="lg:col-span-2 bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+                                    <h3 className="text-lg font-bold text-gray-900 mb-6">Revenue Over Time</h3>
+                                    <div className="h-72 w-full">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <AreaChart data={salesTrends} margin={{ top: 10, right: 10, left: 20, bottom: 0 }}>
+                                                <defs>
+                                                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                                                        <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.3}/>
+                                                        <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
+                                                    </linearGradient>
+                                                </defs>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                                                <XAxis dataKey="date" tick={{fontSize: 12, fill: '#6b7280'}} axisLine={false} tickLine={false} tickMargin={10} />
+                                                <RechartsYAxis tickFormatter={(val) => `Rs. ${val/1000}k`} tick={{fontSize: 12, fill: '#6b7280'}} axisLine={false} tickLine={false} tickMargin={10} />
+                                                <RechartsTooltip 
+                                                    formatter={(value) => [formatCurrency(value), "Revenue"]}
+                                                    contentStyle={{ borderRadius: '0.5rem', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                                                />
+                                                <Area type="monotone" dataKey="Revenue" stroke="#4f46e5" strokeWidth={2} fillOpacity={1} fill="url(#colorRevenue)" />
+                                            </AreaChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
                                 
                                 {/* Category Breakdown */}
-                                <Card>
-                                    <Title>Sales by Category</Title>
-                                    <DonutChart
-                                        className="h-52 mt-6"
-                                        data={categoryData}
-                                        category="sales"
-                                        index="name"
-                                        valueFormatter={(number) => `Rs. ${Intl.NumberFormat("us").format(number).toString()}`}
-                                        colors={["slate", "violet", "indigo", "rose"]}
-                                    />
-                                </Card>
-                            </Grid>
+                                <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col">
+                                    <h3 className="text-lg font-bold text-gray-900 mb-6">Sales by Category</h3>
+                                    <div className="h-52 w-full mt-auto mb-auto">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <PieChart>
+                                                <Pie
+                                                    data={categoryData}
+                                                    cx="50%"
+                                                    cy="50%"
+                                                    innerRadius={60}
+                                                    outerRadius={80}
+                                                    paddingAngle={2}
+                                                    dataKey="sales"
+                                                    nameKey="name"
+                                                >
+                                                    {categoryData.map((entry, index) => (
+                                                        <Cell key={`cell-${index}`} fill={DONUT_COLORS[index % DONUT_COLORS.length]} />
+                                                    ))}
+                                                </Pie>
+                                                <RechartsTooltip 
+                                                    formatter={(value) => formatCurrency(value)}
+                                                    contentStyle={{ borderRadius: '0.5rem', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                                                />
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                    {/* Custom Legend to mimic Tremor */}
+                                    <div className="mt-4 flex flex-wrap justify-center gap-3">
+                                        {categoryData.map((entry, index) => (
+                                            <div key={index} className="flex items-center text-xs text-gray-600">
+                                                <span className="w-3 h-3 rounded-full mr-1.5" style={{ backgroundColor: DONUT_COLORS[index % DONUT_COLORS.length] }}></span>
+                                                {entry.name}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
 
                             {/* Top Products */}
-                            <Card>
-                                <Title>Top Selling Products (Units)</Title>
-                                <BarChart
-                                    className="h-72 mt-4"
-                                    data={topProducts}
-                                    index="name"
-                                    categories={["units"]}
-                                    colors={["emerald"]}
-                                    layout="horizontal"
-                                />
-                            </Card>
+                            <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+                                <h3 className="text-lg font-bold text-gray-900 mb-6">Top Selling Products (Units)</h3>
+                                <div className="h-72 w-full">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={topProducts} layout="vertical" margin={{ top: 0, right: 20, left: 40, bottom: 0 }}>
+                                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e5e7eb" />
+                                            <XAxis type="number" tick={{fontSize: 12, fill: '#6b7280'}} axisLine={false} tickLine={false} />
+                                            <RechartsYAxis type="category" dataKey="name" tick={{fontSize: 12, fill: '#374151', fontWeight: 500}} axisLine={false} tickLine={false} width={120} />
+                                            <RechartsTooltip 
+                                                cursor={{fill: '#f3f4f6'}}
+                                                contentStyle={{ borderRadius: '0.5rem', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                                            />
+                                            <Bar dataKey="units" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={24} name="Units Sold" />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
                         </>
                     )}
                 </div>

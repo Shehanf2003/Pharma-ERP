@@ -19,6 +19,20 @@ const stockMovementSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  flow: {
+    type: String,
+    enum: ['IN', 'OUT']
+  },
+  unitCost: {
+    type: Number,
+    required: true,
+    default: 0
+  },
+  unitMrp: {
+    type: Number,
+    required: true,
+    default: 0
+  },
   fromLocation: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Location'
@@ -40,4 +54,3 @@ const stockMovementSchema = new mongoose.Schema({
 const StockMovement = mongoose.model('StockMovement', stockMovementSchema);
 
 export default StockMovement;
-

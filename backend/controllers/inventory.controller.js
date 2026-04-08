@@ -554,14 +554,9 @@ export const adjustStock = async (req, res) => {
             batch: batch._id,
             type: 'ADJUSTMENT',
             quantity: Math.abs(diff),
-            // For adjustment, "from" or "to" depends on if we added or removed.
-            // If we added (diff > 0), it's "toLocation".
-            // If we removed (diff < 0), it's "fromLocation" ??
-            // Or just store "quantity" as signed (+/-)? StockMovement `quantity` is usually absolute.
-            // Let's stick to absolute and infer from type? No, Type is ADJUSTMENT.
-            // Let's set both for clarity or just "toLocation" as the affected location.
+            flow: diff > 0 ? 'IN' : 'OUT', // <-- This is critical for historical math
             toLocation: locationId,
-            reason: `Manual Adjustment: ${reason} (Diff: ${diff})`,
+            reason: `Manual Adjustment: ${reason}`,
             user: req.user?._id
         });
 
@@ -595,3 +590,56 @@ export const getLocations = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 }
+
+export const getHistoricalValuation = async (req, res) => {
+  try {
+    const { endDate } = req.query;
+    
+    // If no date is provided, default to right now
+    const targetDate = endDate ? new Date(endDate) : new Date();
+
+    // Reconstruct stock balances up to the target date using MongoDB Aggregation
+    const historicalStock = await StockMovement.aggregate([
+      // 1. Only look at movements that happened ON or BEFORE the target date
+      { $match: { createdAt: { $lte: targetDate } } },
+      
+      // 2. Group by Batch and calculate the net quantity
+      { 
+        $group: {
+          _id: "$batch",
+          netQuantity: {
+            $sum: {
+              $cond: [ { $eq: ["$flow", "IN"] }, "$quantity", { $multiply: ["$quantity", -1] } ]
+            }
+          }
+        }
+      },
+      
+      // 3. Join with the Batch collection to get the costPrice and mrp
+      {
+        $lookup: {
+          from: "batches", // Verify this matches your MongoDB collection name
+          localField: "_id",
+          foreignField: "_id",
+          as: "batchDetails"
+        }
+      },
+      { $unwind: "$batchDetails" }
+    ]);
+
+    // 4. Calculate final financial totals
+    const valuation = historicalStock.reduce((acc, item) => {
+      // Ensure we don't calculate negative stock values if something went wrong
+      const validQty = Math.max(0, item.netQuantity); 
+      
+      acc.totalCost += (item.batchDetails.costPrice || 0) * validQty;
+      acc.totalMrp += (item.batchDetails.mrp || 0) * validQty;
+      return acc;
+    }, { totalCost: 0, totalMrp: 0 });
+
+    res.json(valuation);
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

@@ -12,7 +12,8 @@ import {
   adjustStock,
   getLocations,
   deleteProduct,
-  updateProductPrice
+  updateProductPrice,
+  getHistoricalValuation
 } from '../controllers/inventory.controller.js';
 import { protectRoute, adminRoute } from '../middleware/auth.middleware.js';
 import {
@@ -36,6 +37,7 @@ const router = express.Router();
 router.post('/products', protectRoute, adminRoute, addProduct);
 router.delete('/products/:id', protectRoute, adminRoute, deleteProduct);
 router.post('/batches', protectRoute, adminRoute, addBatch);
+router.get('/valuation', protectRoute, getHistoricalValuation);
 router.get('/alerts/low-stock', protectRoute, getLowStockAlerts);
 router.get('/alerts/expiring', protectRoute, getExpiringBatches);
 router.get('/', protectRoute, getInventory);
