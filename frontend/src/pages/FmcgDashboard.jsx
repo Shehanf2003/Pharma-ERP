@@ -10,6 +10,11 @@ const SkeletonLoader = () => (
 const FmcgDashboard = ({ startDate, endDate, refreshTrigger }) => {
     const [showPoSuggestions, setShowPoSuggestions] = useState(false);
     const [poModal, setPoModal] = useState({ isOpen: false, data: null });
+    const [poForm, setPoForm] = useState({ supplier: '', unitCost: '' });
+    const [supplierSearch, setSupplierSearch] = useState('');
+    const [isSupplierDropdownOpen, setIsSupplierDropdownOpen] = useState(false);
+    const [suppliers, setSuppliers] = useState([]);
+    const [products, setProducts] = useState([]);
 
     const [fmcgData, setFmcgData] = useState([]);
     const [loading, setLoadingFmcg] = useState(false);
@@ -44,6 +49,24 @@ const FmcgDashboard = ({ startDate, endDate, refreshTrigger }) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [refreshTrigger]);
 
+    useEffect(() => {
+        const fetchInventoryData = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                const headers = { 'Authorization': `Bearer ${token}` };
+                const [supRes, prodRes] = await Promise.all([
+                    fetch('/api/inventory/suppliers', { headers }),
+                    fetch('/api/inventory', { headers })
+                ]);
+                if (supRes.ok) setSuppliers(await supRes.json());
+                if (prodRes.ok) setProducts(await prodRes.json());
+            } catch (err) {
+                console.error("Failed to fetch inventory data for POs", err);
+            }
+        };
+        fetchInventoryData();
+    }, []);
+
     if (loading) return <SkeletonLoader />;
 
     const hasData = fmcgData && fmcgData.length > 0;
@@ -52,11 +75,49 @@ const FmcgDashboard = ({ startDate, endDate, refreshTrigger }) => {
         ? fmcgData.filter(item => item.fmcgClass === 'Fast').map(item => ({ ...item, suggestedQty: Math.ceil(item.totalQuantity / 3) }))
         : [];
 
-    const handlePoSubmit = (e) => {
+    const handlePoSubmit = async (e) => {
         e.preventDefault();
-        // Here you would hook this up to your backend POST /api/purchase-orders
-        alert(`✅ Purchase Order successfully created for ${poModal.data?.productName}!`);
-        setPoModal({ isOpen: false, data: null });
+        
+        try {
+            const matchedProduct = products.find(p => p.name === poModal.data?.productName);
+            if (!matchedProduct) {
+                alert(`Error: Product "${poModal.data?.productName}" not found in inventory database.`);
+                return;
+            }
+
+            if (!poForm.supplier) {
+                alert("Please select a supplier.");
+                return;
+            }
+
+            const newPO = {
+                supplier: poForm.supplier,
+                items: [{
+                    product: matchedProduct._id,
+                    quantity: poModal.data.suggestedQty,
+                    unitCost: Number(poForm.unitCost)
+                }]
+            };
+
+            const token = localStorage.getItem('token');
+            const res = await fetch('/api/inventory/purchase-orders', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(newPO)
+            });
+
+            if (!res.ok) throw new Error((await res.json()).message || 'Failed to create PO');
+
+            alert(`✅ Purchase Order successfully created for ${poModal.data?.productName}!`);
+            setPoModal({ isOpen: false, data: null });
+            setPoForm({ supplier: '', unitCost: '' });
+            setSupplierSearch('');
+        } catch (err) {
+            alert(err.message);
+        }
     };
 
     return (
@@ -93,6 +154,43 @@ const FmcgDashboard = ({ startDate, endDate, refreshTrigger }) => {
                 </div>
             )}
             
+            {/* PO Suggestions UI */}
+            {showPoSuggestions && poSuggestions.length > 0 && (
+                <div className="mb-8 bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg">
+                    <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3 tracking-wide">
+                        <ShoppingCart className="w-6 h-6 text-cyan-400" />
+                        Suggested 30-Day Restock (Fast Moving Only)
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {poSuggestions.map((item, idx) => (
+                            <div key={idx} className="bg-slate-900 p-6 rounded-xl border border-slate-700 shadow-md flex flex-col justify-between border-t-4 border-t-amber-400 hover:shadow-xl transition-shadow">
+                                <div className="flex justify-between items-start mb-6">
+                                    <div className="flex-1 min-w-0 mr-4">
+                                        <p className="font-black text-white text-lg truncate" title={item.productName}>{item.productName}</p>
+                                        <p className="text-sm text-gray-400 mt-1 font-bold">90d Vol: {item.totalQuantity.toLocaleString()}</p>
+                                    </div>
+                                    <div className="text-right shrink-0">
+                                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Order Qty</p>
+                                        <p className="text-3xl font-black text-amber-400">+{item.suggestedQty.toLocaleString()}</p>
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={() => {
+                                        setPoModal({ isOpen: true, data: item });
+                                        setPoForm({ supplier: '', unitCost: '' });
+                                        setSupplierSearch('');
+                                    }} 
+                                    className="w-full flex justify-center items-center py-3 px-4 rounded-md shadow-sm text-sm font-black text-slate-950 bg-cyan-500 hover:bg-cyan-400 transition-colors"
+                                >
+                                    <PlusCircle className="w-5 h-5 mr-2 stroke-[3]" />
+                                    Create PO
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {!hasData && !error ? (
                 <div className="flex flex-col items-center justify-center py-24 rounded-2xl border-4 border-slate-700 border-dashed bg-slate-900">
                     <h3 className="text-xl font-bold text-white tracking-wide">No FMCG Data Available</h3>
@@ -135,40 +233,106 @@ const FmcgDashboard = ({ startDate, endDate, refreshTrigger }) => {
                 </div>
             )}
 
-            {/* PO Suggestions UI */}
-            {showPoSuggestions && poSuggestions.length > 0 && (
-                <div className="mt-8 bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg">
-                    <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3 tracking-wide">
-                        <ShoppingCart className="w-6 h-6 text-cyan-400" />
-                        Suggested 30-Day Restock (Fast Moving Only)
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {poSuggestions.map((item, idx) => (
-                            <div key={idx} className="bg-slate-900 p-6 rounded-xl border border-slate-700 shadow-md flex flex-col justify-between border-t-4 border-t-amber-400 hover:shadow-xl transition-shadow">
-                                <div className="flex justify-between items-start mb-6">
-                                    <div className="flex-1 min-w-0 mr-4">
-                                        <p className="font-black text-white text-lg truncate" title={item.productName}>{item.productName}</p>
-                                        <p className="text-sm text-gray-400 mt-1 font-bold">90d Vol: {item.totalQuantity.toLocaleString()}</p>
-                                    </div>
-                                    <div className="text-right shrink-0">
-                                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Order Qty</p>
-                                        <p className="text-3xl font-black text-amber-400">+{item.suggestedQty.toLocaleString()}</p>
-                                    </div>
-                                </div>
+            
+            {/* Create PO Modal */}
+            {poModal.isOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm transition-opacity">
+                    <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-md p-6 max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-200">
+                        <div className="flex justify-between items-center mb-6 border-b border-slate-700 pb-4">
+                            <h3 className="text-xl font-black text-white flex items-center gap-3 tracking-wide">
+                                <PlusCircle className="w-6 h-6 text-cyan-400" />
+                                Create Purchase Order
+                            </h3>
+                            <button onClick={() => setPoModal({ isOpen: false, data: null })} className="text-gray-400 hover:text-white transition-colors p-2 rounded-full hover:bg-slate-800">
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+                        
+                        <form onSubmit={handlePoSubmit} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold text-gray-400 mb-1">Product</label>
+                                <input 
+                                    type="text" 
+                                    disabled 
+                                    value={poModal.data?.productName || ''} 
+                                    className="w-full bg-slate-800 border border-slate-600 text-gray-300 rounded-lg p-2.5 outline-none cursor-not-allowed"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-gray-400 mb-1">Quantity</label>
+                                <input 
+                                    type="number" 
+                                    disabled 
+                                    value={poModal.data?.suggestedQty || 0} 
+                                    className="w-full bg-slate-800 border border-slate-600 text-gray-300 rounded-lg p-2.5 outline-none cursor-not-allowed font-black"
+                                />
+                            </div>
+                            <div className="relative">
+                                <label className="block text-sm font-bold text-gray-400 mb-1">Supplier</label>
+                                <input 
+                                    type="text"
+                                    value={supplierSearch}
+                                    onChange={(e) => {
+                                        setSupplierSearch(e.target.value);
+                                        setPoForm({ ...poForm, supplier: '' }); // Reset selected ID when user types
+                                        setIsSupplierDropdownOpen(true);
+                                    }}
+                                    onFocus={() => setIsSupplierDropdownOpen(true)}
+                                    onBlur={() => setTimeout(() => setIsSupplierDropdownOpen(false), 200)}
+                                    placeholder="Search supplier..."
+                                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-cyan-500"
+                                    required={!poForm.supplier}
+                                />
+                                {isSupplierDropdownOpen && (
+                                    <ul className="absolute z-10 w-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-lg max-h-48 overflow-y-auto custom-scrollbar">
+                                        {suppliers.filter(s => s.name.toLowerCase().includes(supplierSearch.toLowerCase())).length > 0 ? (
+                                            suppliers.filter(s => s.name.toLowerCase().includes(supplierSearch.toLowerCase())).map(s => (
+                                                <li 
+                                                    key={s._id} 
+                                                    onMouseDown={() => { setPoForm({ ...poForm, supplier: s._id }); setSupplierSearch(s.name); setIsSupplierDropdownOpen(false); }}
+                                                    className="px-4 py-2.5 hover:bg-slate-700 cursor-pointer text-gray-200 font-medium transition-colors border-b border-slate-700/50 last:border-0"
+                                                >
+                                                    {s.name}
+                                                </li>
+                                            ))
+                                        ) : (
+                                            <li className="px-4 py-2.5 text-gray-500 italic text-sm font-medium">No suppliers found</li>
+                                        )}
+                                    </ul>
+                                )}
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-gray-400 mb-1">Estimated Unit Cost (Rs.)</label>
+                                <input 
+                                    type="number" 
+                                    min="0"
+                                    step="0.01"
+                                    required
+                                    value={poForm.unitCost}
+                                    onChange={(e) => setPoForm({...poForm, unitCost: e.target.value})}
+                                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-cyan-500"
+                                    placeholder="0.00"
+                                />
+                            </div>
+                            <div className="pt-4 flex justify-end gap-3">
                                 <button 
-                                    onClick={() => setPoModal({ isOpen: true, data: item })} 
-                                    className="w-full flex justify-center items-center py-3 px-4 rounded-md shadow-sm text-sm font-black text-slate-950 bg-cyan-500 hover:bg-cyan-400 transition-colors"
+                                    type="button" 
+                                    onClick={() => setPoModal({ isOpen: false, data: null })}
+                                    className="px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 font-bold transition-colors"
                                 >
-                                    <PlusCircle className="w-5 h-5 mr-2 stroke-[3]" />
-                                    Create PO
+                                    Cancel
+                                </button>
+                                <button 
+                                    type="submit" 
+                                    className="px-4 py-2 bg-cyan-500 text-slate-950 rounded-lg hover:bg-cyan-400 font-black transition-colors"
+                                >
+                                    Confirm PO
                                 </button>
                             </div>
-                        ))}
+                        </form>
                     </div>
                 </div>
             )}
-            
-            {/* Note: In a production setting, the Create PO modal would live outside or be a standalone component. */}
         </div>
     );
 };
