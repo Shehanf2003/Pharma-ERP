@@ -1,6 +1,7 @@
 import CashShift from '../models/CashShift.js';
 import Sale from '../models/Sale.js';
 import { z } from 'zod';
+import cron from 'node-cron';
 
 export const getCurrentShift = async (req, res) => {
     try {
@@ -23,6 +24,16 @@ export const getCurrentShift = async (req, res) => {
 export const startShift = async (req, res) => {
     try {
         const { openingBalance } = req.body;
+
+        // Auto-trigger opening shift constraint
+        const now = new Date();
+        const hours = now.getHours();
+        const minutes = now.getMinutes();
+        
+        // Only admins can bypass the 7:30 AM restriction
+        if (req.user.role !== 'admin' && (hours < 7 || (hours === 7 && minutes < 30))) {
+            return res.status(403).json({ message: "Shifts cannot be opened before 7:30 AM." });
+        }
 
         // Check if already has open shift
         const existing = await CashShift.findOne({
@@ -48,6 +59,34 @@ export const startShift = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
+// Cron job to auto-close shifts at midnight (00:00 every day)
+cron.schedule('0 0 * * *', async () => {
+    try {
+        const openShifts = await CashShift.find({ status: 'OPEN' });
+        for (const shift of openShifts) {
+            const sales = await Sale.find({
+                cashierId: shift.cashierId,
+                createdAt: { $gte: shift.startTime },
+                paymentMethod: 'Cash',
+                status: 'completed'
+            });
+            const cashSales = sales.reduce((sum, sale) => sum + sale.totalAmount, 0);
+
+            shift.endTime = new Date();
+            shift.systemCalculatedSales = cashSales;
+            shift.actualCashAmount = shift.openingBalance + cashSales; // Assume actual matches expected
+            shift.closingBalance = shift.actualCashAmount;
+            shift.discrepancy = 0;
+            shift.status = 'CLOSED';
+            shift.notes = 'Auto-closed at midnight by system.';
+
+            await shift.save();
+        }
+    } catch (error) {
+        console.error('Error in auto-closing shifts cron job:', error);
+    }
+});
 
 export const endShift = async (req, res) => {
     try {

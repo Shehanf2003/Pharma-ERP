@@ -23,6 +23,15 @@ const expenseSchema = new mongoose.Schema({
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
+  },
+  status: {
+    type: String,
+    enum: ['PAID', 'PENDING'],
+    default: 'PAID'
+  },
+  paymentMethod: {
+    type: String,
+    default: 'CASH'
   }
 }, { timestamps: true });
 

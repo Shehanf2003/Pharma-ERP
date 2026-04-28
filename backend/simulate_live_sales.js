@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import cron from 'node-cron';
 import path from 'path';
+import { io as SocketClient } from 'socket.io-client';
 
 // Use Models
 import Product from './models/Product.js';
@@ -30,6 +31,9 @@ const CHRONIC_NCD_MEDS = [
 
 const CURRENT_PROVINCE = "Western"; 
 const activeRegion = REGIONAL_DATA[CURRENT_PROVINCE];
+
+// Initialize Socket Client for Real-Time Updates
+const socket = SocketClient(process.env.BACKEND_URL || 'http://localhost:5000');
 
 // --- AUTO-SEEDER: Ensure required ML medicines exist ---
 async function ensureSimulationProductsExist() {
@@ -258,6 +262,9 @@ async function startSimulation() {
                         await batch.save();
                     }
                 }
+
+                // Notify the backend to broadcast the update via WebSocket
+                socket.emit('SIMULATED_SALE');
 
             } catch (err) {
                 console.error('Error generating live sale:', err.message);

@@ -11,7 +11,7 @@ const Dashboard = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
-  const [newExpense, setNewExpense] = useState({ description: '', amount: '', category: 'Other' });
+  const [newExpense, setNewExpense] = useState({ description: '', amount: '', category: 'Other', status: 'PAID', paymentMethod: 'CASH' });
   const [dateRange, setDateRange] = useState(() => {
       const end = new Date();
       const start = new Date();
@@ -59,7 +59,7 @@ const Dashboard = () => {
         await axiosInstance.post('/finance', newExpense);
         toast.success('Expense added!');
         setShowExpenseModal(false);
-        setNewExpense({ description: '', amount: '', category: 'Other' });
+        setNewExpense({ description: '', amount: '', category: 'Other', status: 'PAID', paymentMethod: 'CASH' });
         fetchStats(); // Update dashboard
     } catch (error) {
         toast.error('Failed to add expense');
@@ -253,6 +253,30 @@ const Dashboard = () => {
                                 <option value="Maintenance">Maintenance</option>
                                 <option value="Other">Other</option>
                             </select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                                <select
+                                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                                   value={newExpense.status}
+                                   onChange={e => setNewExpense({...newExpense, status: e.target.value})}
+                                >
+                                    <option value="PAID">Paid</option>
+                                    <option value="PENDING">Pending</option>
+                                </select>
+                            </div>
+                            {newExpense.status === 'PAID' && (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+                                    <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" value={newExpense.paymentMethod} onChange={e => setNewExpense({...newExpense, paymentMethod: e.target.value})}>
+                                        <option value="CASH">Cash</option>
+                                        <option value="BANK_TRANSFER">Bank Transfer</option>
+                                        <option value="CHEQUE">Cheque</option>
+                                        <option value="ONLINE">Online</option>
+                                    </select>
+                                </div>
+                            )}
                         </div>
                     </div>
                     <div className="mt-6 flex justify-end gap-3">

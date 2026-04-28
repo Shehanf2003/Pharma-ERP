@@ -44,7 +44,8 @@ export const getFinancialStats = async (req, res) => {
     const expensesSummary = await Expense.aggregate([
       {
         $match: {
-          date: { $gte: start, $lte: end }
+          date: { $gte: start, $lte: end },
+          status: { $ne: 'PENDING' }
         }
       },
       {
@@ -100,6 +101,36 @@ export const getReports = async (req, res) => {
         status: 'completed'
       }).populate('items.productId', 'name').sort({ createdAt: -1 });
       return res.json(sales);
+    } else if (type === 'ITEM_SALES') {
+      const sales = await Sale.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: start, $lte: end },
+            status: 'completed'
+          }
+        },
+        { $unwind: "$items" },
+        {
+          $lookup: {
+            from: "products",
+            localField: "items.productId",
+            foreignField: "_id",
+            as: "product"
+          }
+        },
+        { $unwind: "$product" },
+        {
+          $group: {
+            _id: "$product._id",
+            name: { $first: "$product.name" },
+            category: { $first: "$product.category" },
+            totalQuantity: { $sum: { $subtract: ["$items.quantity", { $ifNull: ["$items.returnedQuantity", 0] }] } },
+            totalRevenue: { $sum: { $multiply: [{ $subtract: ["$items.quantity", { $ifNull: ["$items.returnedQuantity", 0] }] }, "$items.price"] } }
+          }
+        },
+        { $sort: { totalQuantity: -1 } }
+      ]);
+      return res.json(sales);
     } else if (type === 'EXPENSES') {
       const expenses = await Expense.find({
         date: { $gte: start, $lte: end }
@@ -115,7 +146,8 @@ export const getReports = async (req, res) => {
       });
 
       const expenses = await Expense.find({
-        date: { $gte: start, $lte: end }
+        date: { $gte: start, $lte: end },
+        status: { $ne: 'PENDING' }
       });
 
       // Combine into a daily breakdown
@@ -140,13 +172,15 @@ export const getExpenses = async (req, res) => {
 
 export const addExpense = async (req, res) => {
     try {
-        const { description, amount, category, date } = req.body;
+        const { description, amount, category, date, status, paymentMethod } = req.body;
 
         const expense = new Expense({
             description,
             amount: Number(amount),
             category,
             date: date || new Date(),
+            status: status || 'PAID',
+            paymentMethod: status === 'PENDING' ? null : (paymentMethod || 'CASH'),
             // Optional: link to the user who created it if you have auth middleware
             // user: req.user?._id 
         });

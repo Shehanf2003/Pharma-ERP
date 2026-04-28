@@ -17,6 +17,7 @@ import ReportingAnalytics from './pages/ReportingAnalytics';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 import Navbar from './components/Navbar';
+import SyncManager from './components/SyncManager';
 
 // This layout wraps pages that need the Navbar
 const AppLayout = () => {
@@ -26,6 +27,7 @@ const AppLayout = () => {
       <main>
         <Outlet />
       </main>
+      <SyncManager />
     </div>
   );
 };

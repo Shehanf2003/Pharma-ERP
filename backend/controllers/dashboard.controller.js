@@ -47,6 +47,14 @@ export const getDashboardStats = async (req, res) => {
     // 3. Finance: Revenue vs Expenses (This Month)
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
+    const startOfPrevMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const endOfPrevMonth = new Date(today.getFullYear(), today.getMonth(), 0, 23, 59, 59, 999);
+
+    const prevDayStart = new Date(today);
+    prevDayStart.setDate(prevDayStart.getDate() - 1);
+    const prevDayEnd = new Date(prevDayStart);
+    prevDayEnd.setHours(23, 59, 59, 999);
+
     const salesMonth = await Sale.aggregate([
       { $match: { createdAt: { $gte: startOfMonth } } },
       {
@@ -63,7 +71,7 @@ export const getDashboardStats = async (req, res) => {
     ]);
 
     const expenseMonth = await Expense.aggregate([
-      { $match: { date: { $gte: startOfMonth } } },
+      { $match: { date: { $gte: startOfMonth }, status: { $ne: 'PENDING' } } },
       { $group: { _id: null, total: { $sum: "$amount" } } }
     ]);
 
@@ -71,6 +79,87 @@ export const getDashboardStats = async (req, res) => {
     const totalCOGS = salesMonth[0]?.cogs[0]?.total || 0;
     const totalExpenses = expenseMonth[0]?.total || 0;
     const netProfit = totalRevenue - totalCOGS - totalExpenses;
+
+    const salesPrevMonth = await Sale.aggregate([
+      { $match: { createdAt: { $gte: startOfPrevMonth, $lte: endOfPrevMonth } } },
+      {
+        $facet: {
+          revenue: [
+            { $group: { _id: null, total: { $sum: "$totalAmount" } } }
+          ],
+          cogs: [
+            { $unwind: "$items" },
+            { $group: { _id: null, total: { $sum: { $multiply: [{ $ifNull: ["$items.costPrice", 0] }, "$items.quantity"] } } } }
+          ]
+        }
+      }
+    ]);
+
+    const expensePrevMonth = await Expense.aggregate([
+      { $match: { date: { $gte: startOfPrevMonth, $lte: endOfPrevMonth }, status: { $ne: 'PENDING' } } },
+      { $group: { _id: null, total: { $sum: "$amount" } } }
+    ]);
+
+    const prevMonthRevenue = salesPrevMonth[0]?.revenue[0]?.total || 0;
+    const prevMonthCOGS = salesPrevMonth[0]?.cogs[0]?.total || 0;
+    const prevMonthExpenses = expensePrevMonth[0]?.total || 0;
+    const prevMonthProfit = prevMonthRevenue - prevMonthCOGS - prevMonthExpenses;
+
+    const salesTodayFinance = await Sale.aggregate([
+      { $match: { createdAt: { $gte: today } } },
+      {
+        $facet: {
+          revenue: [
+            { $group: { _id: null, total: { $sum: "$totalAmount" } } }
+          ],
+          cogs: [
+            { $unwind: "$items" },
+            { $group: { _id: null, total: { $sum: { $multiply: [{ $ifNull: ["$items.costPrice", 0] }, "$items.quantity"] } } } }
+          ]
+        }
+      }
+    ]);
+
+    const expenseToday = await Expense.aggregate([
+      { $match: { date: { $gte: today }, status: { $ne: 'PENDING' } } },
+      { $group: { _id: null, total: { $sum: "$amount" } } }
+    ]);
+
+    const todayRevenue = salesTodayFinance[0]?.revenue[0]?.total || 0;
+    const todayCOGS = salesTodayFinance[0]?.cogs[0]?.total || 0;
+    const todayExpenses = expenseToday[0]?.total || 0;
+    const todayProfit = todayRevenue - todayCOGS - todayExpenses;
+
+    const salesPrevDay = await Sale.aggregate([
+      { $match: { createdAt: { $gte: prevDayStart, $lte: prevDayEnd } } },
+      {
+        $facet: {
+          revenue: [
+            { $group: { _id: null, total: { $sum: "$totalAmount" } } }
+          ],
+          cogs: [
+            { $unwind: "$items" },
+            { $group: { _id: null, total: { $sum: { $multiply: [{ $ifNull: ["$items.costPrice", 0] }, "$items.quantity"] } } } }
+          ]
+        }
+      }
+    ]);
+
+    const expensePrevDay = await Expense.aggregate([
+      { $match: { date: { $gte: prevDayStart, $lte: prevDayEnd }, status: { $ne: 'PENDING' } } },
+      { $group: { _id: null, total: { $sum: "$amount" } } }
+    ]);
+
+    const prevDayRevenue = salesPrevDay[0]?.revenue[0]?.total || 0;
+    const prevDayCOGS = salesPrevDay[0]?.cogs[0]?.total || 0;
+    const prevDayExpenses = expensePrevDay[0]?.total || 0;
+    const prevDayProfit = prevDayRevenue - prevDayCOGS - prevDayExpenses;
+
+    const pendingExpensesAggr = await Expense.aggregate([
+      { $match: { status: 'PENDING' } },
+      { $group: { _id: null, total: { $sum: "$amount" } } }
+    ]);
+    const pendingExpenses = pendingExpensesAggr[0]?.total || 0;
 
     // 4. Chart Data: Dynamic Date Range
     let daysToFetch = 7;
@@ -139,7 +228,20 @@ export const getDashboardStats = async (req, res) => {
         revenue: totalRevenue,
         cogs: totalCOGS,
         expenses: totalExpenses,
-        profit: netProfit
+        profit: netProfit,
+        prevMonthRevenue,
+        prevMonthCOGS,
+        prevMonthExpenses,
+        prevMonthProfit,
+        todayRevenue,
+        todayCOGS,
+        todayExpenses,
+        todayProfit,
+        prevDayRevenue,
+        prevDayCOGS,
+        prevDayExpenses,
+        prevDayProfit,
+        pendingExpenses
       },
       chartData
     });

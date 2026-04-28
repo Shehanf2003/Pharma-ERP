@@ -3,10 +3,12 @@ import Customer from '../models/Customer.js';
 import Prescription from '../models/Prescription.js';
 import Batch from '../models/Batch.js';
 import Product from '../models/Product.js';
+import CashShift from '../models/CashShift.js';
 import StockMovement from '../models/StockMovement.js';
 import { sendBillNotification } from '../services/notification.service.js';
 import { z } from 'zod';
 import mongoose from 'mongoose';
+import { getIO } from '../socket.js';
 
 const saleItemSchema = z.object({
   productId: z.string(),
@@ -52,6 +54,18 @@ export const createSale = async (req, res) => {
   session.startTransaction();
 
   try {
+    // Enforce active shift for non-admin users
+    if (req.user && req.user.role !== 'admin') {
+      const openShift = await CashShift.findOne({
+        cashierId: req.user._id,
+        status: 'OPEN'
+      }).session(session);
+
+      if (!openShift) {
+        throw new Error("You must open a shift before creating a sale.");
+      }
+    }
+
     const validatedData = saleSchema.parse(req.body);
 
     let totalAmount = 0;
@@ -164,7 +178,7 @@ export const createSale = async (req, res) => {
     }
 
     // Trigger Real-Time Updates
-    const io = req.app.get('io');
+    const io = getIO();
     if (io) {
         io.emit('DASHBOARD_UPDATE');
         io.emit('STATS_UPDATE');
@@ -252,6 +266,18 @@ const returnSchema = z.object({
 
 export const processReturn = async (req, res) => {
     try {
+        // Enforce active shift for non-admin users
+        if (req.user && req.user.role !== 'admin') {
+            const openShift = await CashShift.findOne({
+                cashierId: req.user._id,
+                status: 'OPEN'
+            });
+
+            if (!openShift) {
+                return res.status(403).json({ message: "You must open a shift before processing a return." });
+            }
+        }
+
         const { id } = req.params;
         const validatedData = returnSchema.parse(req.body);
 
@@ -333,7 +359,7 @@ export const processReturn = async (req, res) => {
         }
 
         // Trigger Real-Time Updates
-        const io = req.app.get('io');
+        const io = getIO();
         if (io) {
             io.emit('DASHBOARD_UPDATE');
             io.emit('STATS_UPDATE');

@@ -83,8 +83,8 @@ const ReportingAnalytics = ({ startDate, endDate }) => {
   return (
     <div className="p-4 sm:p-6 w-full">
       <div className="mb-6">
-        <h2 className="text-xl font-bold text-gray-900">Stock Analytics</h2>
-        <p className="text-sm text-gray-500 mt-1">Valuation and aging alerts for your current inventory.</p>
+        <h2 className="text-xl font-bold text-white">Stock Analytics</h2>
+        <p className="text-sm text-blue-200 mt-1">Valuation and aging alerts for your current inventory.</p>
       </div>
 
       {error && (
@@ -103,53 +103,53 @@ const ReportingAnalytics = ({ startDate, endDate }) => {
         <div className="space-y-8">
           {/* KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm border-t-4 border-t-indigo-500 flex items-center justify-between hover:shadow-md transition-shadow">
+            <div className="bg-blue-900/40 p-6 rounded-xl border border-blue-800 shadow-sm border-t-4 border-t-indigo-500 flex items-center justify-between hover:shadow-md transition-shadow">
               <div>
-                <p className="text-sm text-gray-500 font-medium">Total Stock Cost</p>
-                <p className="text-2xl font-bold text-gray-900 mt-2">Rs. {stockValuation.totalCost.toLocaleString()}</p>
+                <p className="text-sm text-blue-200 font-medium">Total Stock Cost</p>
+                <p className="text-2xl font-bold text-white mt-2">Rs. {stockValuation.totalCost.toLocaleString()}</p>
               </div>
-              <div className="p-3 bg-indigo-50 rounded-xl"><DollarSign className="w-6 h-6 text-indigo-600" /></div>
+              <div className="p-3 bg-indigo-900/50 rounded-xl"><DollarSign className="w-6 h-6 text-indigo-400" /></div>
             </div>
-            <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm border-t-4 border-t-emerald-500 flex items-center justify-between hover:shadow-md transition-shadow">
+            <div className="bg-blue-900/40 p-6 rounded-xl border border-blue-800 shadow-sm border-t-4 border-t-emerald-500 flex items-center justify-between hover:shadow-md transition-shadow">
               <div>
-                <p className="text-sm text-gray-500 font-medium">Estimated MRP Value</p>
-                <p className="text-2xl font-bold text-gray-900 mt-2">Rs. {stockValuation.totalMrp.toLocaleString()}</p>
+                <p className="text-sm text-blue-200 font-medium">Estimated MRP Value</p>
+                <p className="text-2xl font-bold text-white mt-2">Rs. {stockValuation.totalMrp.toLocaleString()}</p>
               </div>
-              <div className="p-3 bg-emerald-50 rounded-xl"><TrendingUp className="w-6 h-6 text-emerald-600" /></div>
+              <div className="p-3 bg-emerald-900/50 rounded-xl"><TrendingUp className="w-6 h-6 text-emerald-400" /></div>
             </div>
-            <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm border-t-4 border-t-rose-500 flex items-center justify-between hover:shadow-md transition-shadow">
+            <div className="bg-blue-900/40 p-6 rounded-xl border border-blue-800 shadow-sm border-t-4 border-t-rose-500 flex items-center justify-between hover:shadow-md transition-shadow">
               <div>
-                <p className="text-sm text-gray-500 font-medium">Low Stock Items</p>
-                <p className="text-2xl font-bold text-gray-900 mt-2">{lowStock.length}</p>
+                <p className="text-sm text-blue-200 font-medium">Low Stock Items</p>
+                <p className="text-2xl font-bold text-white mt-2">{lowStock.length}</p>
               </div>
-              <div className="p-3 bg-rose-50 rounded-xl"><AlertTriangle className="w-6 h-6 text-rose-600" /></div>
+              <div className="p-3 bg-rose-900/50 rounded-xl"><AlertTriangle className="w-6 h-6 text-rose-400" /></div>
             </div>
           </div>
 
           {/* Expiring Batches Table */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-6 py-5 border-b border-gray-100 flex items-center gap-2 bg-gray-50/50">
+          <div className="bg-blue-900/40 rounded-xl shadow-sm border border-blue-800 overflow-hidden">
+            <div className="px-6 py-5 border-b border-blue-800/50 flex items-center gap-2 bg-blue-900/60">
               <Clock className="w-5 h-5 text-amber-500" />
-              <h3 className="text-lg font-bold text-gray-900">Aging & Expiring Batches (Next 90 Days)</h3>
+              <h3 className="text-lg font-bold text-white">Aging & Expiring Batches (Next 90 Days)</h3>
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+                <thead className="bg-blue-900/50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Product Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Batch No</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Expiry Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Qty Remaining</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-blue-200 uppercase tracking-wider">Product Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-blue-200 uppercase tracking-wider">Batch No</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-blue-200 uppercase tracking-wider">Expiry Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-blue-200 uppercase tracking-wider">Qty Remaining</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-transparent divide-y divide-blue-800/50">
                   {expiring.map(batch => (
-                    <tr key={batch._id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <tr key={batch._id} className="hover:bg-blue-800/40 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">
                         {batch.productId?.name || 'Unknown'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded-md text-xs font-medium border border-gray-200">
+                        <span className="bg-blue-950/50 text-blue-100 px-2 py-1 rounded-md text-xs font-medium border border-blue-800">
                           {batch.batchNumber}
                         </span>
                       </td>
@@ -158,18 +158,18 @@ const ReportingAnalytics = ({ startDate, endDate }) => {
                           {new Date(batch.expiryDate).toLocaleDateString()}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">
                         {batch.quantity}
                       </td>
                     </tr>
                   ))}
                   {expiring.length === 0 && (
                     <tr>
-                      <td colSpan="4" className="px-6 py-12 text-center">
+                      <td colSpan="4" className="px-6 py-12 text-center text-blue-300">
                         <div className="flex flex-col items-center justify-center text-gray-500">
                           <Package className="w-10 h-10 text-gray-300 mb-3" />
-                          <p className="text-sm font-medium text-gray-900">No expiring batches</p>
-                          <p className="text-xs mt-1">All current inventory is well within expiry limits.</p>
+                          <p className="text-sm font-medium text-white">No expiring batches</p>
+                          <p className="text-xs mt-1 text-blue-200">All current inventory is well within expiry limits.</p>
                         </div>
                       </td>
                     </tr>

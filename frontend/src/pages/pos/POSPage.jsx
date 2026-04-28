@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Search, ShoppingCart, Trash2, Wifi, WifiOff,
-  History, RefreshCw, Scan, Keyboard, Plus, Minus, X, Printer, Edit3
+  History, RefreshCw, Scan, Keyboard, Plus, Minus, X, Printer, Edit3, Clock, CheckCircle, Info, Lock, AlertCircle, LogOut
 } from 'lucide-react';
 import { cacheProducts, getCachedProducts, savePendingSale, getPendingSales, removePendingSale } from '../../lib/offlineDb';
+import { useAuth } from '../../context/AuthContext';
 import { Link } from 'react-router-dom';
 import axiosInstance from '../../lib/axios';
 import { getCurrentShift, startShift, endShift, initiatePayment } from '../../lib/financeApi';
@@ -15,6 +16,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useReactToPrint } from 'react-to-print';
 
 const POSPage = () => {
+  const { user } = useAuth();
   const [products, setProducts] = useState([]);
   const [cart, setCart] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -64,7 +66,6 @@ const POSPage = () => {
   const searchInputRef = useRef(null);
 
   useEffect(() => {
-    checkShiftStatus();
     const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);
     window.addEventListener('online', handleOnline);
@@ -75,16 +76,22 @@ const POSPage = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (user && !isOffline) {
+      checkShiftStatus();
+    }
+  }, [user, isOffline]);
+
   // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
         if (e.key === 'F2') {
             e.preventDefault();
-            setIsScannerOpen(prev => !prev);
+            if (shift || user?.role === 'admin') setIsScannerOpen(prev => !prev);
         }
         if (e.key === 'F12') {
             e.preventDefault();
-            if (cart.length > 0) setShowCheckout(true);
+            if (cart.length > 0 && (shift || user?.role === 'admin')) setShowCheckout(true);
         }
         if (e.key === 'Escape') {
             if (isScannerOpen) setIsScannerOpen(false);
@@ -95,6 +102,21 @@ const POSPage = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [cart.length, isScannerOpen, showCheckout, searchTerm]);
+
+  // Auto-close open shift at midnight locally
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = new Date();
+      if (now.getHours() === 0 && now.getMinutes() === 0 && shift) {
+        toast.error("Shift auto-closed at midnight.");
+        setShift(null);
+          if (user?.role !== 'admin') {
+            setShowOpenShiftModal(true);
+          }
+      }
+    }, 60000);
+    return () => clearInterval(timer);
+  }, [shift, user]);
 
   // Initial Data Load & Auto-Sync
   useEffect(() => {
@@ -109,10 +131,10 @@ const POSPage = () => {
       try {
           if (isOffline) return;
           const current = await getCurrentShift();
-          if (!current) {
-              setShowOpenShiftModal(true);
-          } else {
+          if (current) {
               setShift(current);
+          } else if (user?.role !== 'admin') {
+              setShowOpenShiftModal(true);
           }
       } catch (error) {
           console.error("Shift check failed", error);
@@ -127,7 +149,7 @@ const POSPage = () => {
           setShowOpenShiftModal(false);
           toast.success("Shift started");
       } catch (error) {
-          toast.error("Failed to start shift");
+          toast.error(error.response?.data?.message || "Failed to start shift");
       }
   };
 
@@ -137,10 +159,12 @@ const POSPage = () => {
           await endShift({ closingBalance: Number(shiftInputs.closingBalance), notes: shiftInputs.notes });
           setShift(null);
           setShowCloseShiftModal(false);
-          setShowOpenShiftModal(true); // Prompt to open new shift or logout (handled by user action usually, but we force open flow)
+            if (user?.role !== 'admin') {
+                setShowOpenShiftModal(true); // Prompt to open new shift or logout
+            }
           toast.success("Shift closed");
       } catch (error) {
-          toast.error("Failed to close shift");
+          toast.error(error.response?.data?.message || "Failed to close shift");
       }
   };
 
@@ -235,6 +259,11 @@ const POSPage = () => {
   };
 
   const addToCart = (product, batch, quantity = 1, dosage = null) => {
+    if (!shift && user?.role !== 'admin') {
+        toast.error("You must open a shift first!");
+        return;
+    }
+
     // Show toasts outside of setCart to prevent double rendering in Strict Mode
     const existingInCart = cart.find(item => item.batchId === batch._id);
     if (existingInCart) {
@@ -419,6 +448,11 @@ const POSPage = () => {
            <Link to="/pos/history" className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded text-sm transition-colors">
                <History size={18} /> History
            </Link>
+           {!shift && user?.role === 'admin' && (
+             <button onClick={() => setShowOpenShiftModal(true)} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded text-sm transition-colors">
+                Open Shift
+             </button>
+           )}
            {shift && (
              <button onClick={() => setShowCloseShiftModal(true)} className="flex items-center gap-2 bg-rose-600 hover:bg-rose-700 px-3 py-1.5 rounded text-sm transition-colors">
                 Close Shift
@@ -455,7 +489,8 @@ const POSPage = () => {
              </div>
              <button
                 onClick={() => setIsScannerOpen(true)}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 rounded-lg flex items-center gap-2 font-medium shadow-sm active:scale-95 transition-transform"
+                disabled={!shift && user?.role !== 'admin'}
+                className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 rounded-lg flex items-center gap-2 font-medium shadow-sm active:scale-95 transition-transform"
              >
                 <Scan size={20} /> Scan
              </button>
@@ -608,7 +643,7 @@ const POSPage = () => {
                     </button>
                     <button
                       onClick={() => setShowCheckout(true)}
-                      disabled={cart.length === 0}
+                      disabled={cart.length === 0 || (!shift && user?.role !== 'admin')}
                       className="col-span-3 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-700 active:scale-95 transition-all shadow-lg shadow-emerald-200 disabled:opacity-50 disabled:pointer-events-none disabled:shadow-none h-12 flex items-center justify-center gap-2 text-lg"
                     >
                       Checkout <span className="text-emerald-200 text-sm font-normal">(F12)</span>
@@ -644,56 +679,93 @@ const POSPage = () => {
       )}
 
       {showOpenShiftModal && (
-          <div className="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-sm flex items-center justify-center p-4">
-              <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-8 text-center">
-                  <h2 className="text-2xl font-bold text-slate-800 mb-2">Start Shift</h2>
-                  <p className="text-slate-500 mb-6">Enter the opening cash balance to begin.</p>
+          <div className="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+              <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center border-t-8 border-emerald-500">
+                  <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Clock className="text-emerald-600 w-8 h-8" />
+                  </div>
+                  <h2 className="text-3xl font-black text-slate-800 mb-2">Start Shift</h2>
+                  <p className="text-slate-500 mb-8 font-medium">Enter the opening cash balance to begin transactions.</p>
                   <form onSubmit={handleStartShift}>
-                      <input
-                        type="number"
-                        required
-                        min="0"
-                        className="w-full text-center text-3xl font-bold py-4 border-2 border-slate-200 rounded-xl focus:border-emerald-500 outline-none mb-6"
-                        placeholder="0.00"
-                        value={shiftInputs.openingBalance}
-                        onChange={e => setShiftInputs({...shiftInputs, openingBalance: e.target.value})}
-                      />
-                      <button type="submit" className="w-full py-4 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-all">
-                          Open Register
+                      <div className="relative mb-8">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xl">Rs.</span>
+                          <input
+                            type="number"
+                            required
+                            min="0"
+                            className="w-full text-center text-4xl font-black py-4 pl-12 pr-4 border-2 border-slate-200 rounded-2xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 outline-none transition-all text-slate-800"
+                            placeholder="0.00"
+                            value={shiftInputs.openingBalance}
+                            onChange={e => setShiftInputs({...shiftInputs, openingBalance: e.target.value})}
+                          />
+                      </div>
+                      <button type="submit" className="w-full py-4 bg-emerald-600 text-white font-bold text-lg rounded-2xl hover:bg-emerald-700 active:scale-95 transition-all shadow-lg shadow-emerald-200 flex items-center justify-center gap-2">
+                          <CheckCircle className="w-6 h-6" /> Open Register
                       </button>
+                      {user?.role === 'admin' && (
+                          <button 
+                              type="button" 
+                              onClick={() => setShowOpenShiftModal(false)} 
+                              className="w-full mt-3 py-4 bg-slate-100 text-slate-600 font-bold text-lg rounded-2xl hover:bg-slate-200 active:scale-95 transition-all flex items-center justify-center gap-2"
+                          >
+                              Bypass Shift (Admin)
+                          </button>
+                      )}
                   </form>
+                  <p className="text-xs text-slate-400 mt-6 flex items-center justify-center gap-1">
+                      <Info className="w-4 h-4" /> Shift opening restricted before 7:30 AM
+                  </p>
               </div>
           </div>
       )}
 
       {showCloseShiftModal && (
-          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-              <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
-                  <h2 className="text-xl font-bold text-slate-800 mb-4">End Shift</h2>
-                  <form onSubmit={handleEndShift}>
-                      <div className="mb-4">
-                          <label className="block text-sm font-medium text-slate-700 mb-1">Closing Cash Balance</label>
-                          <input
-                            type="number"
-                            required
-                            min="0"
-                            className="w-full bg-slate-50 border-slate-400 rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
-                            value={shiftInputs.closingBalance}
-                            onChange={e => setShiftInputs({...shiftInputs, closingBalance: e.target.value})}
-                          />
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+              <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 border-t-8 border-rose-500">
+                  <div className="flex justify-between items-center mb-6">
+                      <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2">
+                          <Lock className="text-rose-500 w-6 h-6" /> End Shift
+                      </h2>
+                      <button onClick={() => setShowCloseShiftModal(false)} className="text-slate-400 hover:text-slate-600 bg-slate-100 p-2 rounded-full transition-colors">
+                          <X className="w-5 h-5" />
+                      </button>
+                  </div>
+                  
+                  <div className="bg-rose-50 p-4 rounded-xl border border-rose-100 mb-6 flex items-start gap-3">
+                      <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+                      <p className="text-sm text-rose-800 font-medium">Please count your drawer carefully. Shifts will automatically close at midnight.</p>
+                  </div>
+
+                  <form onSubmit={handleEndShift} className="space-y-5">
+                      <div>
+                          <label className="block text-sm font-bold text-slate-700 mb-2">Closing Cash Balance</label>
+                          <div className="relative">
+                              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">Rs.</span>
+                              <input
+                                type="number"
+                                required
+                                min="0"
+                                className="w-full text-xl font-bold py-3 pl-12 pr-4 bg-slate-50 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-rose-500/20 focus:border-rose-500 outline-none transition-all text-slate-800"
+                                placeholder="0.00"
+                                value={shiftInputs.closingBalance}
+                                onChange={e => setShiftInputs({...shiftInputs, closingBalance: e.target.value})}
+                              />
+                          </div>
                       </div>
-                      <div className="mb-6">
-                          <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
+                      <div>
+                          <label className="block text-sm font-bold text-slate-700 mb-2">Shift Notes (Optional)</label>
                           <textarea
-                            className="w-full bg-slate-50 border-slate-400 rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
+                            className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl p-3 focus:ring-4 focus:ring-rose-500/20 focus:border-rose-500 outline-none transition-all text-slate-700 resize-none"
                             rows="3"
+                            placeholder="Any discrepancies or notes?"
                             value={shiftInputs.notes}
                             onChange={e => setShiftInputs({...shiftInputs, notes: e.target.value})}
                           ></textarea>
                       </div>
-                      <div className="flex justify-end gap-3">
-                          <button type="button" onClick={() => setShowCloseShiftModal(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-50 rounded-lg">Cancel</button>
-                          <button type="submit" className="px-4 py-2 bg-rose-600 text-white font-bold rounded-lg hover:bg-rose-700">Close Shift</button>
+                      <div className="pt-2">
+                          <button type="submit" className="w-full py-4 bg-rose-600 text-white font-bold text-lg rounded-xl hover:bg-rose-700 active:scale-95 transition-all shadow-lg shadow-rose-200 flex items-center justify-center gap-2">
+                              <LogOut className="w-5 h-5" /> Confirm & Close Shift
+                          </button>
                       </div>
                   </form>
               </div>
