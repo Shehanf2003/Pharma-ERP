@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Package, ShoppingCart, AlertCircle, X, PlusCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Package, ShoppingCart, AlertCircle, X, PlusCircle, Activity } from 'lucide-react';
 
 const SkeletonLoader = () => (
   <div className="animate-pulse space-y-6 w-full">
@@ -7,7 +7,8 @@ const SkeletonLoader = () => (
   </div>
 );
 
-const FmcgDashboard = ({ startDate, endDate, refreshTrigger }) => {
+// Updated props to match the backend 'days' parameter
+const FmcgDashboard = ({ days = 365, refreshTrigger }) => {
     const [showPoSuggestions, setShowPoSuggestions] = useState(false);
     const [poModal, setPoModal] = useState({ isOpen: false, data: null });
     const [poForm, setPoForm] = useState({ supplier: '', unitCost: '' });
@@ -17,26 +18,22 @@ const FmcgDashboard = ({ startDate, endDate, refreshTrigger }) => {
     const [products, setProducts] = useState([]);
 
     const [fmcgData, setFmcgData] = useState([]);
+    const [silhouetteScore, setSilhouetteScore] = useState(null);
     const [loading, setLoadingFmcg] = useState(false);
     const [error, setFmcgError] = useState('');
-
-    const buildDateQuery = useCallback(() => {
-        const params = new URLSearchParams();
-        if (startDate) params.append('startDate', startDate);
-        if (endDate) params.append('endDate', endDate);
-        return params.toString();
-    }, [startDate, endDate]);
 
     const fetchFmcgData = async () => {
         setLoadingFmcg(true);
         setFmcgError('');
-        const query = buildDateQuery(); 
         
         try {
-            const response = await fetch(`http://localhost:8000/api/ml/fmcg-clustering?${query}`);
+            // Replaced buildDateQuery with the simpler 'days' parameter matching the FastAPI backend
+            const response = await fetch(`http://localhost:8000/api/ml/fmcg-clustering?days=${days}`);
             if (!response.ok) throw new Error('Failed to fetch');
             const data = await response.json();
+            
             setFmcgData(data.data || []);
+            setSilhouetteScore(data.silhouetteScore);
         } catch (error) {
             setFmcgError(error.message);
         } finally {
@@ -47,7 +44,7 @@ const FmcgDashboard = ({ startDate, endDate, refreshTrigger }) => {
     useEffect(() => {
         fetchFmcgData();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [refreshTrigger]);
+    }, [refreshTrigger, days]);
 
     useEffect(() => {
         const fetchInventoryData = async () => {
@@ -71,8 +68,13 @@ const FmcgDashboard = ({ startDate, endDate, refreshTrigger }) => {
 
     const hasData = fmcgData && fmcgData.length > 0;
 
+    // Dynamically calculate a 30-day restock based on the actual 'days' window provided
     const poSuggestions = hasData 
-        ? fmcgData.filter(item => item.fmcgClass === 'Fast').map(item => ({ ...item, suggestedQty: Math.ceil(item.totalQuantity / 3) }))
+        ? fmcgData.filter(item => item.fmcgClass === 'Fast').map(item => ({ 
+            ...item, 
+            // Use the seasonalScore instead of raw totalQuantity
+            suggestedQty: Math.ceil((item.seasonalScore / days) * 30) 
+        }))
         : [];
 
     const handlePoSubmit = async (e) => {
@@ -122,18 +124,28 @@ const FmcgDashboard = ({ startDate, endDate, refreshTrigger }) => {
 
     return (
         <div className="bg-slate-900 p-6 rounded-2xl border border-slate-700 shadow-lg mb-8 min-h-[500px]">
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-8 gap-6">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-8 gap-6">
                 <div>
-                    <h2 className="text-xl font-bold text-white flex items-center gap-3 tracking-wide">
-                        <Package className="w-6 h-6 text-cyan-400" />
-                        FMCG ABC Analysis
-                    </h2>
-                    <p className="text-base text-gray-400 mt-2 font-bold">Categorizes products into Fast, Normal, and Slow moving based on 90-day volume and order frequency.</p>
+                    <div className="flex items-center gap-3">
+                        <h2 className="text-xl font-bold text-white flex items-center gap-3 tracking-wide">
+                            <Package className="w-6 h-6 text-cyan-400" />
+                            FMCG K-Means Analysis
+                        </h2>
+                        {silhouetteScore !== null && (
+                            <span className="flex items-center gap-1.5 bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 px-2.5 py-1 rounded-md text-xs font-bold shadow-sm" title="Silhouette Score: Measures cluster quality (closer to 1.0 is better)">
+                                <Activity className="w-3.5 h-3.5" />
+                                Model Confidence: {silhouetteScore}
+                            </span>
+                        )}
+                    </div>
+                    <p className="text-base text-gray-400 mt-2 font-bold">
+                        Categorizes products dynamically based on {days}-day volume, order frequency, and current month seasonality.
+                    </p>
                 </div>
                 {hasData && (
                     <button 
                         onClick={() => setShowPoSuggestions(!showPoSuggestions)}
-                        className={`flex items-center px-5 py-2.5 rounded-lg shadow-sm transition-colors text-sm font-black ${
+                        className={`flex items-center px-5 py-2.5 rounded-lg shadow-sm transition-colors text-sm font-black whitespace-nowrap ${
                             showPoSuggestions 
                             ? 'bg-slate-800 text-gray-300 hover:text-white border border-slate-600' 
                             : 'bg-cyan-500 text-slate-950 hover:bg-cyan-400'
@@ -167,7 +179,7 @@ const FmcgDashboard = ({ startDate, endDate, refreshTrigger }) => {
                                 <div className="flex justify-between items-start mb-6">
                                     <div className="flex-1 min-w-0 mr-4">
                                         <p className="font-black text-white text-lg truncate" title={item.productName}>{item.productName}</p>
-                                        <p className="text-sm text-gray-400 mt-1 font-bold">90d Vol: {item.totalQuantity.toLocaleString()}</p>
+                                        <p className="text-sm text-gray-400 mt-1 font-bold">{days}d Vol: {item.totalQuantity.toLocaleString()}</p>
                                     </div>
                                     <div className="text-right shrink-0">
                                         <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Order Qty</p>
@@ -194,7 +206,7 @@ const FmcgDashboard = ({ startDate, endDate, refreshTrigger }) => {
             {!hasData && !error ? (
                 <div className="flex flex-col items-center justify-center py-24 rounded-2xl border-4 border-slate-700 border-dashed bg-slate-900">
                     <h3 className="text-xl font-bold text-white tracking-wide">No FMCG Data Available</h3>
-                    <p className="text-gray-400 text-base mt-2 font-bold">Adjust your date filters to see ABC clustering results.</p>
+                    <p className="text-gray-400 text-base mt-2 font-bold">Adjust your analysis timeframe to see ABC clustering results.</p>
                 </div>
             ) : (
                 <div className="overflow-x-auto rounded-xl border border-slate-700 shadow-sm">
@@ -202,7 +214,8 @@ const FmcgDashboard = ({ startDate, endDate, refreshTrigger }) => {
                         <thead className="bg-slate-800">
                             <tr>
                                 <th className="px-6 py-4 text-sm font-bold text-gray-300 uppercase tracking-wider">Product Name</th>
-                                <th className="px-6 py-4 text-sm font-bold text-gray-300 uppercase tracking-wider">Total Sold (90d)</th>
+                                <th className="px-6 py-4 text-sm font-bold text-gray-300 uppercase tracking-wider">Total Sold ({days}d)</th>
+                                <th className="px-6 py-4 text-sm font-bold text-gray-300 uppercase tracking-wider">Seasonal Score</th>
                                 <th className="px-6 py-4 text-sm font-bold text-gray-300 uppercase tracking-wider">Order Frequency</th>
                                 <th className="px-6 py-4 text-sm font-bold text-gray-300 uppercase tracking-wider">Classification</th>
                             </tr>
@@ -216,6 +229,7 @@ const FmcgDashboard = ({ startDate, endDate, refreshTrigger }) => {
                                             {item.totalQuantity.toLocaleString()}
                                         </span>
                                     </td>
+                                    <td className="px-6 py-5 whitespace-nowrap text-base text-indigo-400 font-bold">{item.seasonalScore.toLocaleString()}</td>
                                     <td className="px-6 py-5 whitespace-nowrap text-base text-gray-300 font-bold">{item.orderFrequency.toLocaleString()}</td>
                                     <td className="px-6 py-5 whitespace-nowrap">
                                         <span className={`inline-flex items-center px-3 py-1 rounded text-sm font-black shadow-sm ${
@@ -233,7 +247,6 @@ const FmcgDashboard = ({ startDate, endDate, refreshTrigger }) => {
                 </div>
             )}
 
-            
             {/* Create PO Modal */}
             {poModal.isOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm transition-opacity">
@@ -274,7 +287,7 @@ const FmcgDashboard = ({ startDate, endDate, refreshTrigger }) => {
                                     value={supplierSearch}
                                     onChange={(e) => {
                                         setSupplierSearch(e.target.value);
-                                        setPoForm({ ...poForm, supplier: '' }); // Reset selected ID when user types
+                                        setPoForm({ ...poForm, supplier: '' }); 
                                         setIsSupplierDropdownOpen(true);
                                     }}
                                     onFocus={() => setIsSupplierDropdownOpen(true)}

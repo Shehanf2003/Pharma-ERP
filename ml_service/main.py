@@ -40,12 +40,17 @@ def read_root():
 # MODEL 1: FMCG ABC Analysis using K-Means Clustering
 # ---------------------------------------------------------
 @app.get("/api/ml/fmcg-clustering")
-def fmcg_clustering(days: int = 90):
+def fmcg_clustering(days: int = 365):
     """
-    Uses K-Means clustering to categorize products into Fast, Normal, and Slow moving
-    based on sales volume and order frequency.
+    Uses K-Means clustering to categorize products into Fast, Normal, and Slow moving.
+    Applies a 2x momentum weight to sales within the last 30 days to smoothly adapt 
+    to recent trends without calendar-month boundary drop-offs.
     """
-    cutoff_date = datetime.datetime.utcnow() - datetime.timedelta(days=days)
+    now = datetime.datetime.utcnow()
+    cutoff_date = now - datetime.timedelta(days=days)
+    
+    # THE FIX: Establish a smooth rolling 30-day window for recent momentum
+    recent_cutoff = now - datetime.timedelta(days=30)
     
     # 1. Fetch Sales Data
     sales = list(db.sales.find({"createdAt": {"$gte": cutoff_date}}))
@@ -55,24 +60,52 @@ def fmcg_clustering(days: int = 90):
     # 2. Extract and format data into a Pandas DataFrame
     data = []
     for sale in sales:
+        sale_date = sale.get("createdAt")
+        
+        # Handle string parsing if coming straight from Mongo as ISO strings
+        if isinstance(sale_date, str):
+            try:
+                sale_date = datetime.datetime.fromisoformat(sale_date.replace('Z', '+00:00'))
+            except ValueError:
+                continue
+                
+        if not isinstance(sale_date, datetime.datetime):
+            continue
+
+        # Strip timezone info for safe comparison against 'now'
+        if sale_date.tzinfo is not None:
+            sale_date = sale_date.replace(tzinfo=None)
+
+        # THE FIX: Apply 2x weight ONLY if the sale occurred in the last 30 days
+        weight = 2.0 if sale_date >= recent_cutoff else 1.0
+
         for item in sale.get("items", []):
             data.append({
                 "productId": str(item["productId"]),
-                "quantity": item["quantity"]
+                "weighted_quantity": item["quantity"] * weight,
+                "actual_quantity": item["quantity"]
             })
     
     df = pd.DataFrame(data)
     if df.empty:
         raise HTTPException(status_code=404, detail="No items found in recent sales")
 
-    # 3. Aggregate metrics per product: Total Volume & Order Frequency
+    # 3. Aggregate metrics per product: Weighted Volume & Order Frequency
     product_stats = df.groupby('productId').agg(
-        total_quantity=('quantity', 'sum'),
-        order_frequency=('quantity', 'count')
+        total_weighted_quantity=('weighted_quantity', 'sum'),
+        actual_quantity=('actual_quantity', 'sum'),
+        order_frequency=('actual_quantity', 'count')
     ).reset_index()
 
+    # Edge Case Protection: K-Means needs at least as many samples as clusters
+    if len(product_stats) < 3:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Need at least 3 distinct products to form Fast/Normal/Slow clusters. Only found {len(product_stats)}."
+        )
+
     # 4. Apply K-Means Clustering (3 Clusters: Fast, Normal, Slow)
-    X = product_stats[['total_quantity', 'order_frequency']]
+    X = product_stats[['total_weighted_quantity', 'order_frequency']]
     kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
     product_stats['cluster'] = kmeans.fit_predict(X)
 
@@ -80,10 +113,10 @@ def fmcg_clustering(days: int = 90):
     try:
         score = float(silhouette_score(X, product_stats['cluster']))
     except ValueError:
-        score = None  # Fails if there's not enough variation to create distinct clusters
+        score = None  # Fails gracefully if data is too uniform
 
-    # 5. Determine which cluster is which (based on average quantity in the cluster)
-    cluster_centers = product_stats.groupby('cluster')['total_quantity'].mean().sort_values(ascending=False)
+    # 5. Determine which cluster is which (based on average weighted quantity)
+    cluster_centers = product_stats.groupby('cluster')['total_weighted_quantity'].mean().sort_values(ascending=False)
     fast_cluster = cluster_centers.index[0]
     normal_cluster = cluster_centers.index[1]
     slow_cluster = cluster_centers.index[2]
@@ -98,18 +131,20 @@ def fmcg_clustering(days: int = 90):
     # 6. Format Output
     results = []
     for _, row in product_stats.iterrows():
-        # Optionally fetch product name from DB here
+        # Fetch actual product names
         product = db.products.find_one({"_id": ObjectId(row['productId'])})
         results.append({
             "productId": row['productId'],
             "productName": product['name'] if product else "Unknown",
-            "totalQuantity": int(row['total_quantity']),
+            "totalQuantity": int(row['actual_quantity']),
+            "seasonalScore": round(float(row['total_weighted_quantity']), 2),
             "orderFrequency": int(row['order_frequency']),
             "fmcgClass": row['fmcg_class']
         })
 
-    # Sort by Fast first, then total quantity
-    sorted_results = sorted(results, key=lambda x: (x['fmcgClass'] != 'Fast', -x['totalQuantity']))
+    # Sort by Fast first, then highest momentum (seasonalScore)
+    sorted_results = sorted(results, key=lambda x: (x['fmcgClass'] != 'Fast', -x['seasonalScore']))
+    
     return {
         "silhouetteScore": round(score, 3) if score is not None else None,
         "data": sorted_results
