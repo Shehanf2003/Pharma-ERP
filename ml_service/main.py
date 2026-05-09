@@ -163,6 +163,9 @@ def demand_forecast(product_id: str, days_to_predict: int = 30):
     # 1. Resolve Product ID
     try:
         obj_id = ObjectId(product_id)
+        product = db.products.find_one({"_id": obj_id})
+        if not product:
+            raise HTTPException(status_code=400, detail=f"Product not found: {product_id}")
     except InvalidId:
         # Fallback: attempt to find the product by name if an invalid ID is passed
         product = db.products.find_one({"name": product_id})
@@ -171,6 +174,8 @@ def demand_forecast(product_id: str, days_to_predict: int = 30):
         obj_id = product["_id"]
         # Update product_id to the stringified correct ID for the return payload
         product_id = str(obj_id)
+        
+    product_name = product.get("name", "Unknown")
 
     # 2. Fetch historical sales for this product
     pipeline = [
@@ -214,7 +219,7 @@ def demand_forecast(product_id: str, days_to_predict: int = 30):
     for _, row in future_forecast.iterrows():
         predictions.append({"date": row['ds'].strftime("%Y-%m-%d"), "predictedQuantity": max(0, round(row['yhat'], 2))})
 
-    return {"productId": product_id, "forecast": predictions}
+    return {"productId": product_id, "productName": product_name, "forecast": predictions}
 
 
 # ---------------------------------------------------------

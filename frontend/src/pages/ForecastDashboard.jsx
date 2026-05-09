@@ -39,10 +39,10 @@ const ForecastDashboard = () => {
     const downloadCSV = () => {
         if (!forecastData || !forecastData.forecast) return;
         
-        const headers = ['Date', 'Predicted Demand'];
+        const headers = ['Date', 'Item Name', 'Predicted Demand'];
         const csvRows = [
             headers.join(','),
-            ...forecastData.forecast.map(item => `${item.date},${item.predictedQuantity}`)
+            ...forecastData.forecast.map(item => `${item.date},"${forecastData.productName || forecastData.productId}",${item.predictedQuantity}`)
         ];
         
         const csvString = csvRows.join('\n');
@@ -51,7 +51,7 @@ const ForecastDashboard = () => {
         
         const link = document.createElement('a');
         link.href = url;
-        link.setAttribute('download', `forecast_${forecastData.productId.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.csv`);
+        link.setAttribute('download', `forecast_${(forecastData.productName || forecastData.productId).replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -119,7 +119,7 @@ const ForecastDashboard = () => {
                             <Calendar className="w-6 h-6 mr-3 text-cyan-400" />
                             Forecast Results for: 
                             <span className="ml-3 font-black text-cyan-400 bg-slate-900 px-3 py-1.5 rounded-md border border-slate-700 shadow-sm">
-                                {forecastData.productId}
+                                {forecastData.productName || forecastData.productId}
                             </span>
                         </h3>
                         <div className="flex gap-4">
@@ -186,6 +186,7 @@ const ForecastDashboard = () => {
                                 <thead className="bg-slate-800 sticky top-0 z-10">
                                     <tr>
                                         <th className="py-4 px-5 text-sm font-bold text-gray-300 border-b border-slate-600 uppercase tracking-wider">Date</th>
+                                        <th className="py-4 px-5 text-sm font-bold text-gray-300 border-b border-slate-600 uppercase tracking-wider">Item Name</th>
                                         <th className="py-4 px-5 text-sm font-bold text-gray-300 border-b border-slate-600 text-right uppercase tracking-wider">Predicted Demand</th>
                                     </tr>
                                 </thead>
@@ -193,6 +194,7 @@ const ForecastDashboard = () => {
                                     {forecastData.forecast.map((item, idx) => (
                                         <tr key={idx} className="hover:bg-slate-800 transition-colors">
                                             <td className="py-4 px-5 text-base font-bold text-gray-300">{item.date}</td>
+                                            <td className="py-4 px-5 text-base font-bold text-gray-300">{forecastData.productName || forecastData.productId}</td>
                                             <td className="py-4 px-5 text-base font-black text-white text-right">{item.predictedQuantity}</td>
                                         </tr>
                                     ))}
