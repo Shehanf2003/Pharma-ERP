@@ -74,13 +74,36 @@ export const sendSMS = async (phoneNumber, message) => {
       return false;
   }
 
-  // --- INTEGRATION POINT ---
-  // Here you would make an axios call to your SMS Gateway
-  // Example:
-  // await axios.get(`https://api.dialog.lk/sms?to=${phoneNumber}&msg=${encodeURIComponent(message)}&key=YOUR_KEY`);
+  const smsGatewayUrl = process.env.SMS_GATEWAY_URL;
 
-  console.log(`[SMS GATEWAY MOCK] Sending to ${phoneNumber}: "${message}"`);
-  return true;
+  // Fallback to mock if no SMS Gateway URL is provided in the environment
+  if (!smsGatewayUrl) {
+      console.log(`[SMS GATEWAY MOCK] Sending to ${phoneNumber}: "${message}"`);
+      return true;
+  }
+
+  try {
+      // Integrating with Traccar SMS Gateway (Android) or similar JSON POST REST APIs
+      const response = await fetch(smsGatewayUrl, { 
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+              'Authorization': process.env.SMS_GATEWAY_TOKEN || ''
+          },
+          body: JSON.stringify({
+              to: phoneNumber,
+              message: message
+          })
+      });
+
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      
+      console.log(`[SMS GATEWAY] Successfully sent SMS to ${phoneNumber}`);
+      return true;
+  } catch (error) {
+      console.error("NotificationService: Failed to send SMS via Gateway", error.message);
+      return false;
+  }
 };
 
 export const sendLowStockAlert = async (users, product, locationName, currentQty) => {
