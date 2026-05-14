@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-import { getPendingActions, removeAction } from '../services/offlineStorage';
+import axiosInstance from '../lib/axios';
+import { getPendingActions, removePendingAction } from '../lib/offlineDb';
 
 const SyncManager = () => {
     const [isSyncing, setIsSyncing] = useState(false);
@@ -40,9 +40,9 @@ const SyncManager = () => {
             for (const item of sortedActions) {
                 try {
                     // Dynamically process the saved HTTP request
-                    await axios.post(item.endpoint, item.payload);
+                    await axiosInstance.post(item.endpoint, item.payload);
                     // Remove from IndexedDB if successful
-                    await removeAction(item.id);
+                await removePendingAction(item.id);
                 } catch (error) {
                     console.error(`Failed to sync action ${item.id}:`, error);
                     const serverMessage = error.response?.data?.message || 'Server error';

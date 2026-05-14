@@ -9,8 +9,8 @@ export const initDB = async () => {
       if (!db.objectStoreNames.contains('products')) {
         db.createObjectStore('products', { keyPath: '_id' });
       }
-      if (!db.objectStoreNames.contains('pendingSales')) {
-        db.createObjectStore('pendingSales', { keyPath: 'id', autoIncrement: true });
+      if (!db.objectStoreNames.contains('pendingActions')) {
+        db.createObjectStore('pendingActions', { keyPath: 'id', autoIncrement: true });
       }
     },
   });
@@ -31,17 +31,17 @@ export const getCachedProducts = async () => {
   return db.getAll('products');
 };
 
-export const savePendingSale = async (sale) => {
+export const savePendingAction = async (actionData) => {
   const db = await initDB();
-  return db.add('pendingSales', { ...sale, timestamp: Date.now() });
+  return db.add('pendingActions', { ...actionData, timestamp: Date.now(), status: 'PENDING' });
 };
 
-export const getPendingSales = async () => {
+export const getPendingActions = async () => {
   const db = await initDB();
-  return db.getAll('pendingSales');
+  return db.getAll('pendingActions');
 };
 
-export const removePendingSale = async (id) => {
+export const removePendingAction = async (id) => {
     const db = await initDB();
-    return db.delete('pendingSales', id);
+    return db.delete('pendingActions', id);
 };

@@ -1,8 +1,10 @@
 # Offline Capabilities Strategy
 
-This document outlines the current "Level 1" (Read-Only) offline implementation and the roadmap for "Level 2" (Read-Write) capabilities for the Pharma ERP system.
+**Offline Operation:** In the event of a total connection loss, the POS interface seamlessly transitions into an offline-first queued mode. Cashiers retain full, rapid access to the cached product catalog and pricing. Furthermore, they can continue executing critical operations like sales and stock adjustments. These transactions are safely stored in a local browser database and optimistically reflected in the user interface, ensuring zero disruption to the customer checkout flow until the connection to the cloud database is restored and the queue is synchronized.
 
-## Current Implementation: Level 1 (Read-Only)
+**Conflict Resolution and Synchronization:** To ensure data integrity, the system's background synchronization manager processes queued actions strictly in the order they occurred. If a synchronized action encounters a server-side conflict—such as attempting to process an offline sale for an item that ran out of global stock—the sync engine intelligently pauses the queue to prevent compounding errors. It then immediately triggers a visual alert, allowing the administrator or cashier to resolve the inventory discrepancy before the remaining queued actions are safely flushed to the main server.
+
+## Implementation Level 1: Caching & Read-Only
 
 ### Overview
 The application currently supports offline viewing of previously visited data. This is achieved using the `vite-plugin-pwa` which configures a Service Worker using Workbox.
@@ -28,9 +30,9 @@ The application currently supports offline viewing of previously visited data. T
 
 ---
 
-## Future Roadmap: Level 2 (Read-Write)
+## Implementation Level 2: Queued Mode & Read-Write
 
-To allow users to **create invoices or add products while offline**, the following architecture changes are required.
+To allow users to **create invoices or adjust stock while offline**, the following architecture was implemented.
 
 ### 1. Local Database (IndexedDB)
 We need a client-side database to store pending actions. `localStorage` is not sufficient for complex objects.
@@ -48,26 +50,18 @@ We need a client-side database to store pending actions. `localStorage` is not s
 
 ### 2. Background Sync
 When the app comes back online, it needs to process this queue.
-*   **Hook**: Listen to the `online` event in `App.jsx`.
-*   **Processor**: A function that iterates through `syncQueue` and sends POST requests to the backend.
+*   **Hook**: `SyncManager.jsx` listens to the native `online` event.
+*   **Processor**: Iterates through `pendingActions` and dynamically sends POST requests to the backend.
 
 ### 3. Conflict Resolution (Inventory)
 **The Challenge**: Two users might sell the same item offline.
 *   User A sells 5 units of Item X (Stock: 10) -> Offline.
 *   User B sells 8 units of Item X (Stock: 10) -> Online.
 *   User B's transaction processes first. Stock becomes 2.
-*   User A comes online. Their transaction (sell 5) is now invalid (only 2 left).
+*   User A comes online. Their transaction (sell 5) is now invalid (only 2 left) and gets rejected by the server validation rules.
 
 **The Solution**:
 1.  **Optimistic UI**: Let User A "finish" the sale offline and print the receipt.
 2.  **Server Validation**: When User A syncs, the server rejects the transaction ("Insufficient Stock").
 3.  **Error Handling**: The app must alert User A: *"Sync Error: Invoice #123 failed due to low stock."*
     *   *Design Decision*: For a strict Pharma ERP, you might want to **disable** offline sales for items with low stock to prevent this, OR accept negative stock and reconcile manually.
-
-### 4. Implementation Steps for Level 2
-1.  Install `idb`: `npm install idb`
-2.  Create `src/services/offlineStorage.js` to manage the queue.
-3.  Wrap API calls (e.g., `axios.post`) in a helper that:
-    *   If Online -> Sends request.
-    *   If Offline -> Saves to `idb` and throws a "Saved Offline" message.
-4.  Create a `SyncManager` component to retry failed requests.

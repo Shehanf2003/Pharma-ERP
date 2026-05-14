@@ -10,6 +10,7 @@ import clsx from 'clsx';
 import { Save, Trash2, ChevronRight, ChevronDown, ArrowRightLeft, Edit3, Search, Scan, Printer, Check, X, DollarSign } from 'lucide-react';
 import ScannerModal from '../../components/ScannerModal';
 import PrintLabelModal from '../../components/inventory/PrintLabelModal';
+import axiosInstance from '../../lib/axios';
 
 const ManageStockTable = () => {
   const [data, setData] = useState([]);
@@ -112,19 +113,48 @@ const ManageStockTable = () => {
               reason: transferData.reason
           };
 
-          const res = await fetch('/api/inventory/transfer', {
-              method: 'POST',
-              headers: getAuthHeaders(),
-              body: JSON.stringify(payload)
-          });
-
-          if (!res.ok) throw new Error((await res.json()).message || 'Transfer failed');
+          await axiosInstance.post('/inventory/transfer', payload);
 
           alert("Transfer Successful");
           setShowTransfer(null);
           fetchData();
       } catch (err) {
-          alert(err.message);
+          if (err.isOffline) {
+              alert(`Saved Offline: ${err.message}`);
+              
+              // Optimistic UI Update for Transfer
+              setData(prevData => prevData.map(batch => {
+                  if (batch._id === showTransfer._id) {
+                      const qtyToTransfer = Number(transferData.quantity);
+                      let newDistribution = [...(batch.stockDistribution || [])];
+                      
+                      // Deduct from source location
+                      newDistribution = newDistribution.map(dist => {
+                          const locId = dist.location?._id || dist.location;
+                          if (locId === transferData.fromLocation) {
+                              return { ...dist, quantity: Math.max(0, dist.quantity - qtyToTransfer) };
+                          }
+                          return dist;
+                      });
+
+                      // Add to destination location
+                      const toLocIndex = newDistribution.findIndex(dist => (dist.location?._id || dist.location) === transferData.toLocation);
+                      if (toLocIndex >= 0) {
+                          newDistribution[toLocIndex] = { ...newDistribution[toLocIndex], quantity: newDistribution[toLocIndex].quantity + qtyToTransfer };
+                      } else {
+                          const toLocObj = locations.find(l => l._id === transferData.toLocation);
+                          newDistribution.push({ location: toLocObj || transferData.toLocation, quantity: qtyToTransfer });
+                      }
+
+                      return { ...batch, stockDistribution: newDistribution };
+                  }
+                  return batch;
+              }));
+
+              setShowTransfer(null);
+          } else {
+              alert(err.response?.data?.message || err.message);
+          }
       }
   };
 
@@ -162,19 +192,18 @@ const ManageStockTable = () => {
               reason: adjustData.reason
           };
 
-          const res = await fetch('/api/inventory/adjust', {
-              method: 'POST',
-              headers: getAuthHeaders(),
-              body: JSON.stringify(payload)
-          });
-
-          if (!res.ok) throw new Error((await res.json()).message || 'Adjustment failed');
+          await axiosInstance.post('/inventory/adjust', payload);
 
           alert("Stock Adjusted Successfully");
           setShowAdjust(null);
           fetchData();
       } catch (err) {
-          alert(err.message);
+          if (err.isOffline) {
+              alert(`Saved Offline: ${err.message}`);
+              setShowAdjust(null);
+          } else {
+              alert(err.response?.data?.message || err.message);
+          }
       }
   };
 
